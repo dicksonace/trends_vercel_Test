@@ -13,7 +13,7 @@ const navigationItems = [
   { icon: Mail, label: 'Messages', href: '/messages' },
   { icon: Bookmark, label: 'Bookmarks', href: '/bookmarks' },
   { icon: List, label: 'Lists', href: '/lists' },
-  { icon: User, label: 'Profile', href: '/profile' },
+  { icon: User, label: 'Dashboard', href: '/dashboard' },
   { icon: MoreHorizontal, label: 'More', href: '/more' },
 ];
 
