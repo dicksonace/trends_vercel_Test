@@ -5,8 +5,9 @@ const API_BASE_URL = 'https://www.trendshub.link';
 
 export async function POST(request: NextRequest) {
   try {
+    const cookieStore = await cookies();
     const token = request.headers.get('authorization')?.replace('Bearer ', '') || 
-                  cookies().get('trendshub_token')?.value;
+                  cookieStore.get('trendshub_token')?.value;
 
     if (!token) {
       return NextResponse.json(
