@@ -158,7 +158,9 @@ export function AuthPage() {
 			// Render buttons when modals are open
 			const renderButtons = () => {
 				if (!clientId) return;
+				if (!window.google?.accounts?.id) return;
 				
+				const googleAccountsId = window.google.accounts.id;
 				const containers = document.querySelectorAll('#google-signin-container');
 				console.log(`🎨 Rendering Google buttons in ${containers.length} containers...`);
 				
@@ -172,7 +174,7 @@ export function AuthPage() {
 						const containerElement = container as HTMLElement;
 						const parentWidth = containerElement.parentElement?.offsetWidth || 400;
 						const buttonWidth = Math.min(parentWidth - 20, 400); // Max 400px, with padding
-						window.google.accounts.id.renderButton(containerElement, {
+						googleAccountsId.renderButton(containerElement, {
 							theme: 'outline',
 							size: 'large',
 							width: buttonWidth, // Google SDK requires a number, not percentage

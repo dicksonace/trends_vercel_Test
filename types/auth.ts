@@ -63,6 +63,7 @@ export interface GoogleLoginRequest {
 export interface GoogleLoginResponse {
   token: string;
   user: User;
+  name?: string;
 }
 
 export interface User {
