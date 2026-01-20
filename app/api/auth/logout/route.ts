@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 
 const API_BASE_URL = 'https://www.trendshub.link';
 
+// Logout route handler
 export async function POST(request: NextRequest) {
   try {
     const cookieStore = await cookies();
