@@ -60,7 +60,7 @@ export default function CommentView({ tweet, onBack }: CommentViewProps) {
             <textarea
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
-              placeholder="Tweet your reply"
+              placeholder="Trend your reply"
               className="w-full resize-none border-none outline-none text-lg placeholder-gray-500 min-h-[100px] focus:outline-none"
             />
             <div className="flex items-center justify-end mt-4">

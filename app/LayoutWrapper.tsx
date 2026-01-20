@@ -28,8 +28,9 @@ export default function LayoutWrapper({
       {/* Container with max-width to center on large screens */}
       <div className="w-full max-w-[1260px] flex">
         {/* Left Navigation - Parallel Route (~250px) - Sticky */}
+        {/* Always render navigation slot, let Navigation component handle visibility */}
         {hasNavigation && (
-          <div className="hidden lg:block w-[250px] flex-shrink-0">
+          <div className="w-0 lg:w-[250px] flex-shrink-0">
             <div className="sticky top-0 h-screen">
               {navigation}
             </div>
@@ -37,7 +38,7 @@ export default function LayoutWrapper({
         )}
 
         {/* Middle Feed - Default Route (~600px) - Main scrollable area */}
-        <div className="flex-1 w-full lg:w-[600px] lg:flex-shrink-0">
+        <div className="flex-1 w-full lg:w-[600px] lg:flex-shrink-0 pb-24 md:pb-0">
           {children}
         </div>
 

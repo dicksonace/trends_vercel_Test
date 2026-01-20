@@ -3,19 +3,25 @@
 import { Moon, Sun } from 'lucide-react';
 import { useTheme } from './ThemeProvider';
 
-export default function ThemeToggle() {
+interface ThemeToggleProps {
+  mobile?: boolean;
+}
+
+export default function ThemeToggle({ mobile = false }: ThemeToggleProps) {
   const { theme, toggleTheme } = useTheme();
 
   return (
     <button
       onClick={toggleTheme}
-      className="p-2 rounded-full hover:bg-accent transition-colors touch-manipulation"
+      className={`rounded-full hover:bg-accent transition-colors touch-manipulation ${
+        mobile ? 'p-1' : 'p-2'
+      }`}
       aria-label="Toggle theme"
     >
       {theme === 'light' ? (
-        <Moon className="w-5 h-5 text-foreground" />
+        <Moon className={`${mobile ? 'w-6 h-6' : 'w-5 h-5'} text-foreground`} />
       ) : (
-        <Sun className="w-5 h-5 text-foreground" />
+        <Sun className={`${mobile ? 'w-6 h-6' : 'w-5 h-5'} text-foreground`} />
       )}
     </button>
   );

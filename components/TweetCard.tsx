@@ -1,9 +1,10 @@
 'use client';
 
-import { MessageCircle, Repeat2, Heart, Share2 } from 'lucide-react';
+import { MessageCircle, Repeat2, Heart, Share2, BarChart3 } from 'lucide-react';
 import { Tweet } from '@/types';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 interface TweetCardProps {
   tweet: Tweet;
@@ -16,6 +17,8 @@ export default function TweetCard({ tweet, isHighlighted = false }: TweetCardPro
   const [isRetweeted, setIsRetweeted] = useState(tweet.retweeted || false);
   const [likes, setLikes] = useState(tweet.likes);
   const [retweets, setRetweets] = useState(tweet.retweets);
+  const [pollVotes, setPollVotes] = useState(tweet.poll?.votes || []);
+  const [userVote, setUserVote] = useState(tweet.poll?.userVote);
 
   const handleLike = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -27,6 +30,30 @@ export default function TweetCard({ tweet, isHighlighted = false }: TweetCardPro
     e.stopPropagation();
     setIsRetweeted(!isRetweeted);
     setRetweets(isRetweeted ? retweets - 1 : retweets + 1);
+  };
+
+  const handlePollVote = (e: React.MouseEvent, optionIndex: number) => {
+    e.stopPropagation();
+    if (!tweet.poll || userVote !== undefined) return; // Already voted or no poll
+    
+    const newVotes = [...pollVotes];
+    newVotes[optionIndex] += 1;
+    setPollVotes(newVotes);
+    setUserVote(optionIndex);
+  };
+
+  const getPollPercentage = (votes: number[], totalVotes: number, index: number) => {
+    if (totalVotes === 0) return 0;
+    return Math.round((votes[index] / totalVotes) * 100);
+  };
+
+  const getTotalPollVotes = (votes: number[]) => {
+    return votes.reduce((sum, vote) => sum + vote, 0);
+  };
+
+  const isPollEnded = (endTime?: string) => {
+    if (!endTime) return false;
+    return new Date(endTime) < new Date();
   };
 
   const handleCardClick = () => {
@@ -52,18 +79,28 @@ export default function TweetCard({ tweet, isHighlighted = false }: TweetCardPro
       }`}
     >
       <div className="flex space-x-4">
-        {/* Profile Picture */}
-        <div className="flex-shrink-0">
-          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold text-lg shadow-sm">
+        {/* Profile Picture - Clickable */}
+        <Link
+          href={`/profile/${tweet.user.username}`}
+          onClick={(e) => e.stopPropagation()}
+          className="flex-shrink-0"
+        >
+          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold text-lg shadow-sm hover:opacity-90 transition-opacity cursor-pointer">
             {tweet.user.name.charAt(0).toUpperCase()}
           </div>
-        </div>
+        </Link>
 
         {/* Tweet Content */}
         <div className="flex-1 min-w-0">
           {/* Header */}
           <div className="flex items-center space-x-2 mb-1 flex-wrap">
-            <span className="font-bold text-foreground hover:underline">{tweet.user.name}</span>
+            <Link
+              href={`/profile/${tweet.user.username}`}
+              onClick={(e) => e.stopPropagation()}
+              className="font-bold text-foreground hover:underline cursor-pointer"
+            >
+              {tweet.user.name}
+            </Link>
             {tweet.user.verified && (
               <svg viewBox="0 0 22 22" className="w-5 h-5 text-blue-500 fill-current">
                 <g>
@@ -71,7 +108,13 @@ export default function TweetCard({ tweet, isHighlighted = false }: TweetCardPro
                 </g>
               </svg>
             )}
-            <span className="text-muted-foreground text-sm hover:underline">@{tweet.user.username}</span>
+            <Link
+              href={`/profile/${tweet.user.username}`}
+              onClick={(e) => e.stopPropagation()}
+              className="text-muted-foreground text-sm hover:underline cursor-pointer"
+            >
+              @{tweet.user.username}
+            </Link>
             <span className="text-muted-foreground hidden sm:inline">·</span>
             <span className="text-muted-foreground text-sm hover:underline">{tweet.timestamp}</span>
           </div>
@@ -86,9 +129,76 @@ export default function TweetCard({ tweet, isHighlighted = false }: TweetCardPro
             <div className="mb-3 rounded-2xl overflow-hidden border border-border shadow-sm">
               <img
                 src={tweet.images[0]}
-                alt="Tweet media"
+                alt="Trend media"
                 className="w-full h-auto object-cover"
               />
+            </div>
+          )}
+
+          {/* Poll Display */}
+          {tweet.poll && (
+            <div className="mb-3 space-y-2">
+              <div className="border border-border rounded-xl p-4 bg-muted/30">
+                <div className="flex items-center gap-2 mb-3">
+                  <BarChart3 className="w-4 h-4 text-blue-500" />
+                  <span className="text-sm text-muted-foreground">
+                    {isPollEnded(tweet.poll.endTime) 
+                      ? 'Final results' 
+                      : `${tweet.poll.duration} day${tweet.poll.duration !== '1' ? 's' : ''} left`}
+                  </span>
+                </div>
+                {tweet.poll.options.map((option, index) => {
+                  const totalVotes = getTotalPollVotes(pollVotes);
+                  const percentage = getPollPercentage(pollVotes, totalVotes, index);
+                  const isVoted = userVote === index;
+                  const hasVoted = userVote !== undefined;
+                  const pollEnded = isPollEnded(tweet.poll?.endTime);
+                  
+                  return (
+                    <button
+                      key={index}
+                      onClick={(e) => handlePollVote(e, index)}
+                      disabled={hasVoted || pollEnded}
+                      className={`w-full mb-2 last:mb-0 relative overflow-hidden rounded-lg border-2 transition-all ${
+                        isVoted
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                          : hasVoted || pollEnded
+                          ? 'border-border bg-background cursor-default'
+                          : 'border-border bg-background hover:border-blue-300 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 cursor-pointer'
+                      }`}
+                    >
+                      <div className="relative z-10 flex items-center justify-between p-3">
+                        <span className={`text-sm font-medium ${
+                          isVoted ? 'text-blue-600 dark:text-blue-400' : 'text-foreground'
+                        }`}>
+                          {option}
+                        </span>
+                        {(hasVoted || pollEnded) && (
+                          <span className={`text-sm font-semibold ${
+                            isVoted ? 'text-blue-600 dark:text-blue-400' : 'text-muted-foreground'
+                          }`}>
+                            {percentage}%
+                          </span>
+                        )}
+                      </div>
+                      {(hasVoted || pollEnded) && (
+                        <div
+                          className={`absolute inset-y-0 left-0 bg-blue-200 dark:bg-blue-800/30 transition-all duration-500 ${
+                            isVoted ? 'bg-blue-300 dark:bg-blue-700/40' : ''
+                          }`}
+                          style={{ width: `${percentage}%` }}
+                        />
+                      )}
+                    </button>
+                  );
+                })}
+                <div className="mt-3 pt-3 border-t border-border">
+                  <span className="text-xs text-muted-foreground">
+                    {getTotalPollVotes(pollVotes)} vote{getTotalPollVotes(pollVotes) !== 1 ? 's' : ''}
+                    {userVote !== undefined && ' · You voted'}
+                  </span>
+                </div>
+              </div>
             </div>
           )}
 

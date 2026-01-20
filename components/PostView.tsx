@@ -5,6 +5,7 @@ import { Tweet } from '@/types';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { mockComments } from '@/lib/mockData';
+import Link from 'next/link';
 
 interface PostViewProps {
   tweet: Tweet;
@@ -51,18 +52,26 @@ export default function PostView({ tweet }: PostViewProps) {
       {/* Post Content */}
       <article className="border-b border-border px-4 lg:px-6 py-6">
         <div className="flex space-x-4">
-          {/* Profile Picture */}
-          <div className="flex-shrink-0">
-            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold text-xl shadow-sm">
+          {/* Profile Picture - Clickable */}
+          <Link
+            href={`/profile/${tweet.user.username}`}
+            className="flex-shrink-0"
+          >
+            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold text-xl shadow-sm hover:opacity-90 transition-opacity cursor-pointer">
               {tweet.user.name.charAt(0).toUpperCase()}
             </div>
-          </div>
+          </Link>
 
           {/* Tweet Content */}
           <div className="flex-1 min-w-0">
             {/* Header */}
             <div className="flex items-center space-x-2 mb-2">
-              <span className="font-bold text-gray-900 dark:text-white text-lg hover:underline">{tweet.user.name}</span>
+              <Link
+                href={`/profile/${tweet.user.username}`}
+                className="font-bold text-gray-900 dark:text-white text-lg hover:underline cursor-pointer"
+              >
+                {tweet.user.name}
+              </Link>
               {tweet.user.verified && (
                 <svg viewBox="0 0 22 22" className="w-5 h-5 text-blue-500 fill-current">
                   <g>
@@ -70,7 +79,12 @@ export default function PostView({ tweet }: PostViewProps) {
                   </g>
                 </svg>
               )}
-              <span className="text-muted-foreground hover:underline">@{tweet.user.username}</span>
+              <Link
+                href={`/profile/${tweet.user.username}`}
+                className="text-muted-foreground hover:underline cursor-pointer"
+              >
+                @{tweet.user.username}
+              </Link>
               <span className="text-muted-foreground">·</span>
               <span className="text-muted-foreground hover:underline">{tweet.timestamp}</span>
             </div>
@@ -85,7 +99,7 @@ export default function PostView({ tweet }: PostViewProps) {
               <div className="mb-4 rounded-2xl overflow-hidden border border-border shadow-sm">
                 <img
                   src={tweet.images[0]}
-                  alt="Tweet media"
+                  alt="Trend media"
                   className="w-full h-auto object-cover"
                 />
               </div>
@@ -172,7 +186,7 @@ export default function PostView({ tweet }: PostViewProps) {
             <textarea
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
-              placeholder="Tweet your reply"
+              placeholder="Trend your reply"
               className="w-full resize-none border-none outline-none text-lg placeholder-muted-foreground min-h-[100px] focus:outline-none bg-background dark:bg-[#0a0a0a] text-foreground transition-colors"
             />
             <div className="flex items-center justify-end mt-4">
@@ -196,18 +210,26 @@ export default function PostView({ tweet }: PostViewProps) {
               className="border-b border-border px-4 lg:px-6 py-4 hover:bg-accent transition-colors"
             >
               <div className="flex space-x-4">
-                {/* Profile Picture */}
-                <div className="flex-shrink-0">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold text-lg">
+                {/* Profile Picture - Clickable */}
+                <Link
+                  href={`/profile/${comment.user.username}`}
+                  className="flex-shrink-0"
+                >
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold text-lg hover:opacity-90 transition-opacity cursor-pointer">
                     {comment.user.name.charAt(0).toUpperCase()}
                   </div>
-                </div>
+                </Link>
 
                 {/* Comment Content */}
                 <div className="flex-1 min-w-0">
                   {/* Header */}
                   <div className="flex items-center space-x-2 mb-1">
-                    <span className="font-bold text-gray-900 dark:text-white">{comment.user.name}</span>
+                    <Link
+                      href={`/profile/${comment.user.username}`}
+                      className="font-bold text-gray-900 dark:text-white hover:underline cursor-pointer"
+                    >
+                      {comment.user.name}
+                    </Link>
                     {comment.user.verified && (
                       <svg viewBox="0 0 22 22" className="w-5 h-5 text-blue-500 fill-current">
                         <g>
@@ -215,7 +237,12 @@ export default function PostView({ tweet }: PostViewProps) {
                         </g>
                       </svg>
                     )}
-                    <span className="text-gray-500 dark:text-gray-400 text-sm">@{comment.user.username}</span>
+                    <Link
+                      href={`/profile/${comment.user.username}`}
+                      className="text-gray-500 dark:text-gray-400 text-sm hover:underline cursor-pointer"
+                    >
+                      @{comment.user.username}
+                    </Link>
                     <span className="text-gray-500 dark:text-gray-400">·</span>
                     <span className="text-gray-500 dark:text-gray-400 text-sm">{comment.timestamp}</span>
                   </div>

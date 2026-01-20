@@ -6,6 +6,14 @@ export interface User {
   verified?: boolean;
 }
 
+export interface Poll {
+  options: string[];
+  votes: number[];
+  duration: string;
+  endTime?: string;
+  userVote?: number; // Index of the option the user voted for
+}
+
 export interface Tweet {
   id: string;
   user: User;
@@ -17,6 +25,7 @@ export interface Tweet {
   replies: number;
   liked?: boolean;
   retweeted?: boolean;
+  poll?: Poll;
 }
 
 export interface Comment {
