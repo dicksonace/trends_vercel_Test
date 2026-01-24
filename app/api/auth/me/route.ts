@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const response = await fetch(`${API_BASE_URL}/me`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/me`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

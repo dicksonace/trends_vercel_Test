@@ -12,10 +12,15 @@ Google Sign-In has been implemented using Google Identity Services. The code is 
 3. Enable **Google+ API** (or Google Identity Services)
 4. Go to **Credentials** → **Create Credentials** → **OAuth client ID**
 5. Choose **Web application**
-6. Add authorized JavaScript origins:
+6. **IMPORTANT: Add authorized JavaScript origins** (this fixes the "origin_mismatch" error):
+   - For **local development**: `http://localhost:3000`
+   - For **Vercel production**: `https://your-vercel-app.vercel.app` (replace with your actual Vercel domain)
+   - If you have a custom domain: `https://yourdomain.com`
+   - **Note**: Do NOT include trailing slashes, paths, or ports (except for localhost)
+7. **Add authorized redirect URIs** (if required):
    - `http://localhost:3000` (for development)
-   - `https://yourdomain.com` (for production)
-7. Copy the **Client ID**
+   - `https://your-vercel-app.vercel.app` (for production)
+8. Copy the **Client ID**
 
 ### 2. Add Client ID to Environment Variables
 
@@ -68,6 +73,29 @@ Once you've added the Client ID:
 
 ## Troubleshooting
 
-- **"Google Sign-In is not configured"**: Make sure `NEXT_PUBLIC_GOOGLE_CLIENT_ID` is set in `.env.local` and the server has been restarted
+### Error 400: origin_mismatch
+
+**This is the most common error!** It means the domain you're accessing the app from is not registered in Google Cloud Console.
+
+**How to fix:**
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Navigate to **APIs & Services** → **Credentials**
+3. Click on your OAuth 2.0 Client ID
+4. Under **Authorized JavaScript origins**, add:
+   - The exact URL you're accessing (e.g., `https://your-app.vercel.app`)
+   - Make sure it matches EXACTLY (including `https://` and no trailing slash)
+5. Click **Save**
+6. Wait 1-2 minutes for changes to propagate
+7. Try again
+
+**Common mistakes:**
+- ❌ Adding `https://your-app.vercel.app/` (with trailing slash)
+- ❌ Adding `http://` instead of `https://` for production
+- ❌ Forgetting to add your Vercel preview URL
+- ✅ Correct: `https://your-app.vercel.app` (no trailing slash)
+
+### Other Issues
+
+- **"Google Sign-In is not configured"**: Make sure `NEXT_PUBLIC_GOOGLE_CLIENT_ID` is set in `.env.local` (local) or Vercel environment variables (production) and the server has been restarted
 - **"Google Sign-In script failed to load"**: Check your internet connection and that the script URL is accessible
 - **Button doesn't appear**: Check browser console for errors, ensure the modal is open, and wait a moment for the button to render

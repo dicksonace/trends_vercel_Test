@@ -5,11 +5,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from './button';
 import { X, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import { Input } from './input';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import ThemeToggle from '@/components/ThemeToggle';
 import { useTheme } from '@/components/ThemeProvider';
-import { login, register, checkUsername, verifyOTP, resendOTP, googleLogin, forgotPassword, resetPassword } from '@/lib/api';
+import { login, register, checkUsername, verifyOTP, resendOTP, googleLogin, googleSignup, forgotPassword, resetPassword } from '@/lib/api';
+import type { GoogleLoginResponse, GoogleSignupResponse } from '@/types/auth';
 
 // Extend Window interface for Google Identity Services
 declare global {
@@ -35,11 +36,17 @@ declare global {
 export function AuthPage() {
 	const pathname = usePathname();
 	const router = useRouter();
+	const searchParams = useSearchParams();
 	const { theme } = useTheme();
 	const isSignup = pathname ? pathname.includes('/signup') : false;
+	
+	// Get return URL from query params, default to discover tab
+	const returnUrl = searchParams.get('returnUrl') || '/?tab=discover';
 	const [showSignInModal, setShowSignInModal] = useState(false);
 	const [showSignUpModal, setShowSignUpModal] = useState(false);
 	const [showOTPModal, setShowOTPModal] = useState(false);
+	// Track which modal triggered Google auth (using ref to avoid closure issues)
+	const googleAuthModeRef = React.useRef<'signin' | 'signup'>('signin');
 	const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
 	const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
 	const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
@@ -121,8 +128,16 @@ export function AuthPage() {
 						}
 
 						setIsLoading(true);
-						// Send ID token to our API
-						const apiResponse = await googleLogin(response.credential);
+						
+						// Determine if this is sign-up or sign-in based on ref (updated when modals open)
+						const isSignUp = googleAuthModeRef.current === 'signup';
+						
+						console.log('Google auth - mode:', googleAuthModeRef.current, 'isSignUp:', isSignUp);
+						
+						// Use googleSignup for sign-up, googleLogin for sign-in
+						const apiResponse = isSignUp 
+							? await googleSignup(response.credential)
+							: await googleLogin(response.credential);
 
 						if (apiResponse.error) {
 							setError(apiResponse.error);
@@ -131,25 +146,41 @@ export function AuthPage() {
 						}
 
 						if (apiResponse.data) {
-							setSuccess('Login successful!');
-							// Store user data
-							if (apiResponse.data.name) {
-								localStorage.setItem('userName', apiResponse.data.name);
+							setSuccess(isSignUp ? 'Account created successfully!' : 'Login successful!');
+							
+							// Store user data (googleSignup already handles this, but we do it here for googleLogin too)
+							if (isSignUp) {
+								// For googleSignup - data is GoogleSignupResponse
+								const signupData = apiResponse.data as GoogleSignupResponse;
+								if (signupData.user) {
+									// googleSignup already stores user data, but ensure it's set
+									localStorage.setItem('currentUser', JSON.stringify(signupData.user));
+									if (signupData.user.name) {
+										localStorage.setItem('userName', signupData.user.name);
+									}
+								}
+							} else {
+								// For googleLogin - data is GoogleLoginResponse
+								const loginData = apiResponse.data as GoogleLoginResponse;
+								if (loginData.name) {
+									localStorage.setItem('userName', loginData.name);
+								}
+								if (loginData.user) {
+									localStorage.setItem('currentUser', JSON.stringify(loginData.user));
+								}
 							}
-							if (apiResponse.data.user) {
-								localStorage.setItem('currentUser', JSON.stringify(apiResponse.data.user));
-							}
+							
 							// Close modals and redirect
 							setShowSignInModal(false);
 							setShowSignUpModal(false);
 							setTimeout(() => {
-								router.push('/');
+								router.push(returnUrl);
 							}, 500);
 						}
 						setIsLoading(false);
 					} catch (err) {
-						console.error('Google login error:', err);
-						setError('An unexpected error occurred during Google login');
+						console.error('Google authentication error:', err);
+						setError(`An unexpected error occurred during Google ${showSignUpModal ? 'signup' : 'login'}`);
 						setIsLoading(false);
 					}
 				},
@@ -291,7 +322,7 @@ export function AuthPage() {
 				}
 				setTimeout(() => {
 					setShowSignInModal(false);
-					router.push('/');
+					router.push(returnUrl);
 				}, 500);
 			}
 		} catch (err) {
@@ -340,7 +371,7 @@ export function AuthPage() {
 					}
 					setTimeout(() => {
 						setShowSignUpModal(false);
-						router.push('/');
+						router.push(returnUrl);
 					}, 500);
 				}
 				setIsLoading(false);
@@ -382,7 +413,7 @@ export function AuthPage() {
 				setTimeout(() => {
 					setShowOTPModal(false);
 					setOtpData({ email: '', otp: '' });
-					router.push('/');
+					router.push(returnUrl);
 				}, 1500);
 			} else {
 				// If we got a response but no clear success indicator, still treat as success if status is 200
@@ -398,7 +429,7 @@ export function AuthPage() {
 					setTimeout(() => {
 						setShowOTPModal(false);
 						setOtpData({ email: '', otp: '' });
-						router.push('/');
+						router.push(returnUrl);
 					}, 1500);
 				} else {
 					setError('Verification failed. Please try again.');
@@ -499,6 +530,7 @@ export function AuthPage() {
 				setTimeout(() => {
 					setShowResetPasswordModal(false);
 					setResetPasswordData({ email: '', token: '', password: '', confirmPassword: '' });
+					googleAuthModeRef.current = 'signin';
 					setShowSignInModal(true);
 				}, 2000);
 			}
@@ -510,7 +542,7 @@ export function AuthPage() {
 	};
 
 	return (
-		<main className="relative md:h-screen md:overflow-hidden lg:grid lg:grid-cols-2 min-h-screen">
+		<main className="relative lg:grid lg:grid-cols-2 min-h-screen overflow-y-auto">
 			<div className="bg-muted/60 relative hidden h-full flex-col border-r p-10 lg:flex items-center justify-center">
 				<div className="z-10 flex flex-col items-center justify-center space-y-6">
 					<img src={logoImage} alt="TrendsHub Logo" width={200} height={200} className="rounded-2xl object-contain shadow-2xl" />
@@ -529,14 +561,14 @@ export function AuthPage() {
 							<p className="text-muted-foreground text-lg">Start a trend today.</p>
 						</div>
 						{!isSignup ? (
-							<Button type="button" className="w-full" size="lg" onClick={() => setShowSignInModal(true)}>Sign in</Button>
+							<Button type="button" className="w-full" size="lg" onClick={() => { googleAuthModeRef.current = 'signin'; setShowSignInModal(true); }}>Sign in</Button>
 						) : (
-							<Button type="button" className="w-full" size="lg" onClick={() => setShowSignUpModal(true)}>Create account</Button>
+							<Button type="button" className="w-full" size="lg" onClick={() => { googleAuthModeRef.current = 'signup'; setShowSignUpModal(true); }}>Create account</Button>
 						)}
 						<div className="text-center pt-4">
 							<p className="text-muted-foreground text-sm">
 								{isSignup ? (
-									<>Already have an account? <button type="button" onClick={() => setShowSignInModal(true)} className="hover:text-primary underline underline-offset-4 font-medium">Sign in</button></>
+									<>Already have an account? <button type="button" onClick={() => { googleAuthModeRef.current = 'signin'; setShowSignInModal(true); }} className="hover:text-primary underline underline-offset-4 font-medium">Sign in</button></>
 								) : (
 									<>Don&apos;t have an account? <Link href="/signup" className="hover:text-primary underline underline-offset-4 font-medium">Sign up</Link></>
 								)}

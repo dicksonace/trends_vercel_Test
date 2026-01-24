@@ -1,10 +1,11 @@
 'use client';
 
-import { MessageCircle, Repeat2, Heart, Share2, BarChart3 } from 'lucide-react';
+import { MessageCircle, Repeat2, Heart, Share2, BarChart3, Bookmark } from 'lucide-react';
 import { Tweet } from '@/types';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { getAuthToken, reactToPost, getLikeStatus, toggleBookmark, getBookmarkStatus } from '@/lib/api';
 
 interface TweetCardProps {
   tweet: Tweet;
@@ -15,15 +16,93 @@ export default function TweetCard({ tweet, isHighlighted = false }: TweetCardPro
   const router = useRouter();
   const [isLiked, setIsLiked] = useState(tweet.liked || false);
   const [isRetweeted, setIsRetweeted] = useState(tweet.retweeted || false);
+  const [isBookmarked, setIsBookmarked] = useState(tweet.bookmarked || false);
   const [likes, setLikes] = useState(tweet.likes);
   const [retweets, setRetweets] = useState(tweet.retweets);
   const [pollVotes, setPollVotes] = useState(tweet.poll?.votes || []);
   const [userVote, setUserVote] = useState(tweet.poll?.userVote);
 
-  const handleLike = (e: React.MouseEvent) => {
+  // Fetch like and bookmark status on mount (only if not already provided in tweet prop)
+  // Use initial state from tweet prop to avoid unnecessary API calls and rate limiting
+  useEffect(() => {
+    const fetchStatus = async () => {
+      const token = getAuthToken();
+      if (!token) return;
+
+      // Use initial state from tweet prop if available
+      if (tweet.liked !== undefined) {
+        setIsLiked(tweet.liked);
+      }
+      if (tweet.bookmarked !== undefined) {
+        setIsBookmarked(tweet.bookmarked);
+      }
+
+      // Only fetch status if we don't have it from the tweet prop
+      // Add a small delay to avoid rate limiting
+      const shouldFetch = tweet.liked === undefined || tweet.bookmarked === undefined;
+      
+      if (shouldFetch) {
+        try {
+          // Add delay to avoid rate limiting (stagger requests)
+          await new Promise(resolve => setTimeout(resolve, Math.random() * 200 + 100));
+          
+          const [likeStatus, bookmarkStatus] = await Promise.all([
+            getLikeStatus(tweet.id),
+            getBookmarkStatus(tweet.id),
+          ]);
+
+          // Only update if we got valid responses (not 429 errors)
+          if (likeStatus.status === 200 && likeStatus.data) {
+            setIsLiked(likeStatus.data.liked);
+          } else if (likeStatus.status === 429) {
+            console.warn(`Rate limited for like status on post ${tweet.id}, using initial state from tweet prop`);
+          }
+          
+          if (bookmarkStatus.status === 200 && bookmarkStatus.data) {
+            setIsBookmarked(bookmarkStatus.data.bookmarked);
+          } else if (bookmarkStatus.status === 429) {
+            console.warn(`Rate limited for bookmark status on post ${tweet.id}, using initial state from tweet prop`);
+          }
+        } catch (error) {
+          console.error('Error fetching status:', error);
+          // On error, keep using the initial state from tweet prop
+        }
+      }
+    };
+
+    fetchStatus();
+  }, [tweet.id, tweet.liked, tweet.bookmarked]);
+
+  const handleLike = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    setIsLiked(!isLiked);
-    setLikes(isLiked ? likes - 1 : likes + 1);
+    
+    const token = getAuthToken();
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+
+    // Optimistic update
+    const newLiked = !isLiked;
+    setIsLiked(newLiked);
+    setLikes(newLiked ? likes + 1 : likes - 1);
+
+    try {
+      const response = await reactToPost(tweet.id);
+      if (response.error) {
+        // Revert on error
+        setIsLiked(!newLiked);
+        setLikes(newLiked ? likes : likes + 1);
+        console.error('Error liking post:', response.error);
+      } else if (response.data) {
+        setIsLiked(response.data.liked);
+      }
+    } catch (error) {
+      // Revert on error
+      setIsLiked(!newLiked);
+      setLikes(newLiked ? likes : likes + 1);
+      console.error('Error liking post:', error);
+    }
   };
 
   const handleRetweet = (e: React.MouseEvent) => {
@@ -56,7 +135,32 @@ export default function TweetCard({ tweet, isHighlighted = false }: TweetCardPro
     return new Date(endTime) < new Date();
   };
 
-  const handleCardClick = () => {
+  const handleCardClick = (e: React.MouseEvent<HTMLElement>) => {
+    // On mobile, if clicking on white space (article padding), go to profile
+    const isMobile = window.innerWidth < 768; // md breakpoint
+    
+    if (isMobile) {
+      const target = e.target as HTMLElement;
+      // If click is directly on article element (white space/padding area), go to profile
+      // Content clicks are handled by handleContentClick which stops propagation
+      if (target === e.currentTarget) {
+        router.push(`/profile/${tweet.user.username}`);
+        return;
+      }
+      // If click reached here on mobile, it means it's on a child element but content click didn't stop it
+      // This shouldn't happen, but as fallback, go to profile
+      return;
+    }
+
+    // Desktop behavior: go to post detail
+    // Check if user is authenticated
+    const token = getAuthToken();
+    if (!token) {
+      // Redirect to login if not authenticated
+      router.push('/login');
+      return;
+    }
+
     // Store current scroll position before navigating
     // Use requestAnimationFrame to get accurate scroll position
     requestAnimationFrame(() => {
@@ -71,32 +175,72 @@ export default function TweetCard({ tweet, isHighlighted = false }: TweetCardPro
     });
   };
 
+  const handleContentClick = (e: React.MouseEvent<HTMLElement>) => {
+    // Stop propagation so article click doesn't fire
+    e.stopPropagation();
+    
+    // Check if user is authenticated
+    const token = getAuthToken();
+    if (!token) {
+      // Redirect to login if not authenticated
+      router.push('/login');
+      return;
+    }
+
+    // Store current scroll position before navigating
+    requestAnimationFrame(() => {
+      const scrollPosition = window.scrollY || window.pageYOffset || document.documentElement.scrollTop;
+      sessionStorage.setItem('feedScrollPosition', scrollPosition.toString());
+      sessionStorage.setItem('lastViewedPostId', tweet.id);
+      
+      setTimeout(() => {
+        router.push(`/post/${tweet.id}`);
+      }, 0);
+    });
+  };
+
   return (
     <article
       onClick={handleCardClick}
-      className={`border-b border-border px-4 lg:px-6 py-4 hover:bg-accent transition-colors cursor-pointer bg-background ${
+      className={`border-b border-border px-4 lg:px-6 py-4 hover:bg-accent transition-colors cursor-pointer bg-background md:cursor-pointer ${
         isHighlighted ? 'bg-blue-50/50 dark:bg-blue-900/20 ring-2 ring-blue-200 dark:ring-blue-800' : ''
       }`}
     >
       <div className="flex space-x-4">
-        {/* Profile Picture - Clickable */}
-        <Link
-          href={`/profile/${tweet.user.username}`}
-          onClick={(e) => e.stopPropagation()}
-          className="flex-shrink-0"
+        {/* Profile Picture Area - White space clicks to post, profile picture clicks to profile */}
+        <div 
+          className="flex-shrink-0 cursor-pointer"
+          onClick={handleContentClick}
         >
-          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold text-lg shadow-sm hover:opacity-90 transition-opacity cursor-pointer">
-            {tweet.user.name.charAt(0).toUpperCase()}
-          </div>
-        </Link>
+          <Link
+            href={`/profile/${tweet.user.username}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              router.push(`/profile/${tweet.user.username}`);
+            }}
+            className="block"
+          >
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold text-lg shadow-sm hover:opacity-90 transition-opacity cursor-pointer">
+              {tweet.user.name.charAt(0).toUpperCase()}
+            </div>
+          </Link>
+        </div>
 
-        {/* Tweet Content */}
-        <div className="flex-1 min-w-0">
+        {/* Tweet Content - Clickable for post detail */}
+        <div 
+          className="flex-1 min-w-0 tweet-content cursor-pointer"
+          onClick={handleContentClick}
+        >
           {/* Header */}
           <div className="flex items-center space-x-2 mb-1 flex-wrap">
             <Link
               href={`/profile/${tweet.user.username}`}
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                router.push(`/profile/${tweet.user.username}`);
+              }}
               className="font-bold text-foreground hover:underline cursor-pointer"
             >
               {tweet.user.name}
@@ -110,7 +254,11 @@ export default function TweetCard({ tweet, isHighlighted = false }: TweetCardPro
             )}
             <Link
               href={`/profile/${tweet.user.username}`}
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                router.push(`/profile/${tweet.user.username}`);
+              }}
               className="text-muted-foreground text-sm hover:underline cursor-pointer"
             >
               @{tweet.user.username}
@@ -221,7 +369,7 @@ export default function TweetCard({ tweet, isHighlighted = false }: TweetCardPro
               className="group flex items-center space-x-2 text-muted-foreground hover:text-blue-500 dark:hover:text-blue-400 touch-manipulation min-w-[44px] min-h-[44px] justify-center rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/20"
             >
               <div className="p-2">
-                <MessageCircle className="w-5 h-5" />
+                <MessageCircle className="w-4 h-4" />
               </div>
               <span className="text-sm font-medium hidden sm:inline">{tweet.replies}</span>
             </button>
@@ -236,7 +384,7 @@ export default function TweetCard({ tweet, isHighlighted = false }: TweetCardPro
               }`}
             >
               <div className="p-2">
-                <Repeat2 className="w-5 h-5" />
+                <Repeat2 className="w-4 h-4" />
               </div>
               <span className={`text-sm font-medium hidden sm:inline ${isRetweeted ? 'text-green-600 dark:text-green-400' : ''}`}>
                 {retweets}
@@ -253,20 +401,89 @@ export default function TweetCard({ tweet, isHighlighted = false }: TweetCardPro
               }`}
             >
               <div className="p-2">
-                <Heart className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
+                <Heart className={`w-4 h-4 ${isLiked ? 'fill-current' : ''}`} />
               </div>
               <span className={`text-sm font-medium hidden sm:inline ${isLiked ? 'text-red-600 dark:text-red-400' : ''}`}>
                 {likes}
               </span>
             </button>
 
+            {/* Bookmark Button */}
+            <button
+              onClick={async (e) => {
+                e.stopPropagation();
+                const token = getAuthToken();
+                if (!token) {
+                  router.push('/login');
+                  return;
+                }
+
+                // Optimistic update
+                const newBookmarked = !isBookmarked;
+                setIsBookmarked(newBookmarked);
+
+                try {
+                  const response = await toggleBookmark(tweet.id);
+                  if (response.error) {
+                    // Revert on error
+                    setIsBookmarked(!newBookmarked);
+                    console.error('Error bookmarking post:', response.error);
+                  } else if (response.data) {
+                    setIsBookmarked(response.data.bookmarked);
+                  }
+                } catch (error) {
+                  // Revert on error
+                  setIsBookmarked(!newBookmarked);
+                  console.error('Error bookmarking post:', error);
+                }
+              }}
+              className={`group flex items-center space-x-2 touch-manipulation min-w-[44px] min-h-[44px] justify-center rounded-full ${
+                isBookmarked
+                  ? 'text-blue-500 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
+                  : 'text-muted-foreground hover:text-blue-500 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20'
+              }`}
+            >
+              <div className="p-2">
+                <Bookmark className={`w-4 h-4 ${isBookmarked ? 'fill-current' : ''}`} />
+              </div>
+            </button>
+
             {/* Share Button */}
             <button
-              onClick={(e) => e.stopPropagation()}
+              onClick={async (e) => {
+                e.stopPropagation();
+                const shareUrl = `https://trendshub.link/${tweet.user.username}/trend/${tweet.id}`;
+                
+                if (navigator.share) {
+                  try {
+                    await navigator.share({
+                      title: `${tweet.user.name} on TrendsHub`,
+                      text: tweet.content.substring(0, 100),
+                      url: shareUrl,
+                    });
+                  } catch (error) {
+                    // User cancelled or error occurred
+                    if ((error as Error).name !== 'AbortError') {
+                      console.error('Error sharing:', error);
+                    }
+                  }
+                } else {
+                  // Fallback: copy to clipboard
+                  try {
+                    await navigator.clipboard.writeText(shareUrl);
+                    // You could show a toast notification here
+                    alert('Link copied to clipboard!');
+                  } catch (error) {
+                    console.error('Error copying to clipboard:', error);
+                    // Final fallback: show URL
+                    prompt('Copy this link:', shareUrl);
+                  }
+                }
+              }}
               className="group flex items-center space-x-2 text-muted-foreground hover:text-blue-500 dark:hover:text-blue-400 touch-manipulation min-w-[44px] min-h-[44px] justify-center rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/20"
             >
               <div className="p-2">
-                <Share2 className="w-5 h-5" />
+                <Share2 className="w-4 h-4" />
               </div>
             </button>
           </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { MessageCircle, Repeat2, Heart, Share2, ArrowLeft } from 'lucide-react';
+import { MessageCircle, Repeat2, Heart, Share2, ArrowLeft, Bookmark } from 'lucide-react';
 import { Tweet, Comment } from '@/types';
 import { mockComments } from '@/lib/mockData';
 import { useState } from 'react';
@@ -109,27 +109,33 @@ export default function CommentView({ tweet, onBack }: CommentViewProps) {
                   <div className="flex items-center justify-between max-w-md mt-2">
                     <button className="flex items-center space-x-2 text-gray-500 hover:text-blue-500 transition-colors group touch-manipulation min-w-[44px] min-h-[44px] justify-center">
                       <div className="p-2 rounded-full group-hover:bg-blue-50">
-                        <MessageCircle className="w-5 h-5" />
+                        <MessageCircle className="w-4 h-4" />
                       </div>
                       <span className="text-sm hidden sm:inline">{comment.replies}</span>
                     </button>
 
                     <button className="flex items-center space-x-2 text-gray-500 hover:text-green-500 transition-colors group touch-manipulation min-w-[44px] min-h-[44px] justify-center">
                       <div className="p-2 rounded-full group-hover:bg-green-50">
-                        <Repeat2 className="w-5 h-5" />
+                        <Repeat2 className="w-4 h-4" />
                       </div>
                     </button>
 
                     <button className="flex items-center space-x-2 text-gray-500 hover:text-red-500 transition-colors group touch-manipulation min-w-[44px] min-h-[44px] justify-center">
                       <div className="p-2 rounded-full group-hover:bg-red-50">
-                        <Heart className="w-5 h-5" />
+                        <Heart className="w-4 h-4" />
                       </div>
                       <span className="text-sm hidden sm:inline">{comment.likes}</span>
                     </button>
 
                     <button className="flex items-center space-x-2 text-gray-500 hover:text-blue-500 transition-colors group touch-manipulation min-w-[44px] min-h-[44px] justify-center">
                       <div className="p-2 rounded-full group-hover:bg-blue-50">
-                        <Share2 className="w-5 h-5" />
+                        <Bookmark className="w-4 h-4" />
+                      </div>
+                    </button>
+
+                    <button className="flex items-center space-x-2 text-gray-500 hover:text-blue-500 transition-colors group touch-manipulation min-w-[44px] min-h-[44px] justify-center">
+                      <div className="p-2 rounded-full group-hover:bg-blue-50">
+                        <Share2 className="w-4 h-4" />
                       </div>
                     </button>
                   </div>

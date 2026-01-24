@@ -16,7 +16,7 @@ export default function SettingsPage() {
   ];
 
   return (
-    <main className="border-x border-border bg-background min-h-screen">
+    <main className="border-x border-border bg-background min-h-screen overflow-y-auto">
       {/* Header */}
       <div className="sticky top-0 bg-background/80 backdrop-blur-md border-b border-border z-10">
         <div className="px-4 lg:px-6 py-4">

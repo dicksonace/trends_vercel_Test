@@ -66,6 +66,17 @@ export interface GoogleLoginResponse {
   name?: string;
 }
 
+export interface GoogleSignupRequest {
+  id_token: string;
+}
+
+export interface GoogleSignupResponse {
+  success: boolean;
+  token: string;
+  user?: User;
+  message?: string;
+}
+
 export interface User {
   id: string;
   username: string;

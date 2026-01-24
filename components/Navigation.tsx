@@ -1,6 +1,6 @@
 'use client';
 
-import { Home, Search, Bell, Bookmark, User, Settings, Wallet, TrendingUp, ArrowUp, Play, LogOut, X } from 'lucide-react';
+import { Home, Search, Bell, Bookmark, User, Settings, Wallet, TrendingUp, ArrowUp, Coins, LogOut, X } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
@@ -21,18 +21,14 @@ const navigationItems = [
   { icon: Wallet, label: 'Wallet', href: '/wallet' },
 ];
 
-// Navigation items for logged-out users
-const guestNavigationItems = [
-  { icon: Home, label: 'Home', href: '/' },
-  { icon: TrendingUp, label: 'Trending', href: '/trending' },
-  { icon: Search, label: 'Search', href: '/explore' },
-];
+// Navigation items for logged-out users (empty - hide Home, Trending, Search when not authenticated)
+const guestNavigationItems: typeof navigationItems = [];
 
 // Mobile bottom navigation items - specific order for mobile
 const mobileNavigationItems = [
   { icon: Home, label: 'Home', href: '/' },
   { icon: Search, label: 'Search', href: '/explore' },
-  { icon: Play, label: 'Play', href: '/play' },
+  { icon: Coins, label: 'Bits', href: '/play' },
   { icon: Bell, label: 'Notifications', href: '/notifications' },
   { icon: User, label: 'Profile', href: '/profile' },
 ];
@@ -197,7 +193,10 @@ export default function Navigation() {
           <ThemeToggle />
         </div>
 
-        <button className="mt-2 w-full bg-black dark:bg-white text-white dark:text-black font-bold py-3 px-6 rounded-full hover:opacity-90 transition-opacity shadow-lg touch-manipulation flex-shrink-0">
+        <button 
+          onClick={() => router.push('/compose')}
+          className="mt-2 w-full bg-black dark:bg-white text-white dark:text-black font-bold py-3 px-6 rounded-full hover:opacity-90 transition-opacity shadow-lg touch-manipulation flex-shrink-0"
+        >
           Trend
         </button>
 
@@ -235,59 +234,102 @@ export default function Navigation() {
       {/* Mobile Bottom Navigation Bar - Fixed at Bottom, Icon Only */}
       <nav className="flex md:hidden fixed bottom-0 left-0 right-0 h-20 bg-background/95 backdrop-blur-md border-t border-border z-[100] shadow-2xl">
         <div className="flex justify-around items-center w-full h-full px-2 pb-2">
-          {/* Mobile Navigation Items - Custom Order */}
-          {mobileNavigationItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = pathname === item.href || 
-              (item.href !== '/' && pathname?.startsWith(item.href));
-            return (
+          {!isLoggedIn ? (
+            // When not logged in: Show Logo, Login, Signup
+            <>
+              {/* Logo */}
               <Link
-                key={item.label}
-                href={item.href}
-                className={`
-                  flex flex-col items-center justify-center flex-1
-                  h-full min-w-0
-                  transition-all duration-200
-                  touch-manipulation
-                  ${isActive 
-                    ? 'text-blue-500 dark:text-blue-400' 
-                    : 'text-foreground'
-                  }
-                `}
-                aria-label={item.label}
-                title={item.label}
+                href="/"
+                className="flex flex-col items-center justify-center flex-1 h-full min-w-0 transition-all duration-200 touch-manipulation"
+                aria-label="Home"
+                title="Home"
               >
-                <Icon 
-                  className={`w-6 h-6 mb-1 ${isActive ? 'scale-110' : ''} transition-transform duration-200`}
-                />
-                <span className={`text-[10px] font-medium truncate w-full text-center ${isActive ? 'text-blue-500 dark:text-blue-400' : 'text-muted-foreground'}`}>
-                  {item.label}
-                </span>
+                <div className="w-8 h-8 mb-1 rounded-lg overflow-hidden">
+                  <Image
+                    src="/logo.jpeg"
+                    alt="TrendsHub Logo"
+                    width={32}
+                    height={32}
+                    className="rounded-lg object-cover"
+                  />
+                </div>
+                <span className="text-[10px] font-medium text-muted-foreground">Home</span>
               </Link>
-            );
-          })}
-          
-          {/* Logout Button - Mobile (only when logged in) */}
-          {isLoggedIn ? (
-            <button
-              onClick={() => setShowLogoutModal(true)}
-              className="flex flex-col items-center justify-center flex-1 h-full min-w-0 transition-all duration-200 touch-manipulation text-red-500"
-              aria-label="Sign Out"
-              title="Sign Out"
-            >
-              <LogOut className="w-6 h-6 mb-1" />
-              <span className="text-[10px] font-medium">Logout</span>
-            </button>
+
+              {/* Login */}
+              <Link
+                href="/login"
+                className="flex flex-col items-center justify-center flex-1 h-full min-w-0 transition-all duration-200 touch-manipulation text-blue-500"
+                aria-label="Log in"
+                title="Log in"
+              >
+                <span className="text-[10px] font-medium">Login</span>
+              </Link>
+
+              {/* Signup */}
+              <Link
+                href="/signup"
+                className="flex flex-col items-center justify-center flex-1 h-full min-w-0 transition-all duration-200 touch-manipulation text-blue-500"
+                aria-label="Sign up"
+                title="Sign up"
+              >
+                <span className="text-[10px] font-medium">Signup</span>
+              </Link>
+            </>
           ) : (
-            // Login link for mobile when logged out
-            <Link
-              href="/login"
-              className="flex flex-col items-center justify-center flex-1 h-full min-w-0 transition-all duration-200 touch-manipulation text-blue-500"
-              aria-label="Log in"
-              title="Log in"
-            >
-              <span className="text-[10px] font-medium">Login</span>
-            </Link>
+            // When logged in: Show regular navigation items
+            <>
+              {/* Mobile Navigation Items - Custom Order */}
+              {mobileNavigationItems
+                .filter((item) => {
+                  // Hide Home and Search when not authenticated (shouldn't happen here, but keeping for safety)
+                  if (!isLoggedIn && (item.label === 'Home' || item.label === 'Search')) {
+                    return false;
+                  }
+                  return true;
+                })
+                .map((item) => {
+                const Icon = item.icon;
+                const isActive = pathname === item.href || 
+                  (item.href !== '/' && pathname?.startsWith(item.href));
+                return (
+                  <Link
+                    key={item.label}
+                    href={item.href}
+                    className={`
+                      flex flex-col items-center justify-center flex-1
+                      h-full min-w-0
+                      transition-all duration-200
+                      touch-manipulation
+                      ${isActive 
+                        ? 'text-blue-500 dark:text-blue-400' 
+                        : 'text-foreground'
+                      }
+                    `}
+                    aria-label={item.label}
+                    title={item.label}
+                  >
+                    <Icon 
+                      className={`w-6 h-6 mb-1 ${isActive ? 'scale-110' : ''} transition-transform duration-200`}
+                    />
+                    <span className={`text-[10px] font-medium truncate w-full text-center ${isActive ? 'text-blue-500 dark:text-blue-400' : 'text-muted-foreground'}`}>
+                      {item.label}
+                    </span>
+                  </Link>
+                );
+              })}
+              
+              {/* Logout Button - Mobile (only when logged in) */}
+              <button
+                onClick={() => setShowLogoutModal(true)}
+                className="flex flex-col items-center justify-center flex-1 h-full min-w-0 transition-all duration-200 touch-manipulation text-red-500"
+                aria-label="Sign Out"
+                title="Sign Out"
+              >
+                <LogOut className="w-6 h-6 mb-1" />
+                <span className="text-[10px] font-medium">Logout</span>
+              </button>
+            </>
           )}
         </div>
       </nav>

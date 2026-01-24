@@ -1,12 +1,62 @@
 'use client';
 
 import { Bookmark } from 'lucide-react';
-import { mockTweets } from '@/lib/mockData';
+import { useState, useEffect } from 'react';
 import TweetCard from '@/components/TweetCard';
+import { fetchBookmarks, getAuthToken } from '@/lib/api';
+import { useRouter } from 'next/navigation';
+import type { FeedPost } from '@/lib/api';
+import type { Tweet } from '@/types';
 
 export default function BookmarksPage() {
-  // Use first few tweets as bookmarked posts
-  const bookmarkedPosts = mockTweets.slice(0, 5);
+  const router = useRouter();
+  const [bookmarkedPosts, setBookmarkedPosts] = useState<Tweet[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const loadBookmarks = async () => {
+      const token = getAuthToken();
+      if (!token) {
+        router.push('/login');
+        return;
+      }
+
+      setIsLoading(true);
+      try {
+        const response = await fetchBookmarks();
+        if (response.data && response.data.posts) {
+          // Convert FeedPost to Tweet format
+          const convertedTweets: Tweet[] = response.data.posts.map((post: FeedPost) => ({
+            id: post.id,
+            user: {
+              id: post.user.id,
+              name: post.user.name,
+              username: post.user.username,
+              avatar: post.user.avatar,
+              verified: post.user.verified || false,
+            },
+            content: post.content,
+            images: post.images,
+            timestamp: post.timestamp,
+            likes: post.likes,
+            retweets: post.retweets,
+            replies: post.replies,
+            liked: post.liked,
+            retweeted: post.retweeted,
+            bookmarked: true, // All posts here are bookmarked
+            poll: post.poll,
+          }));
+          setBookmarkedPosts(convertedTweets);
+        }
+      } catch (error) {
+        console.error('Error fetching bookmarks:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadBookmarks();
+  }, [router]);
 
   return (
     <main className="border-x border-border bg-background min-h-screen">
@@ -25,7 +75,11 @@ export default function BookmarksPage() {
 
       {/* Bookmarked Posts */}
       <div>
-        {bookmarkedPosts.length > 0 ? (
+        {isLoading ? (
+          <div className="px-4 lg:px-6 py-12 text-center text-muted-foreground">
+            <p>Loading bookmarks...</p>
+          </div>
+        ) : bookmarkedPosts.length > 0 ? (
           bookmarkedPosts.map((tweet) => (
             <div key={tweet.id} className="border-b border-border relative">
               <div className="absolute top-4 right-4 z-10">

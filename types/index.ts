@@ -7,10 +7,12 @@ export interface User {
 }
 
 export interface Poll {
+  question?: string; // Poll question text
   options: string[];
   votes: number[];
   duration: string;
   endTime?: string;
+  endDate?: string; // Alternative to endTime
   userVote?: number; // Index of the option the user voted for
 }
 
@@ -20,11 +22,13 @@ export interface Tweet {
   content: string;
   timestamp: string;
   images?: string[];
+  video_file?: string; // For video posts (bits)
   likes: number;
   retweets: number;
   replies: number;
   liked?: boolean;
   retweeted?: boolean;
+  bookmarked?: boolean;
   poll?: Poll;
 }
 

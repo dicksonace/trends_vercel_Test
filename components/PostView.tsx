@@ -1,11 +1,12 @@
 'use client';
 
-import { MessageCircle, Repeat2, Heart, Share2, ArrowLeft } from 'lucide-react';
+import { MessageCircle, Repeat2, Heart, Share2, ArrowLeft, Bookmark } from 'lucide-react';
 import { Tweet } from '@/types';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { mockComments } from '@/lib/mockData';
 import Link from 'next/link';
+import { fetchComments, postComment, likeComment, reactToPost, getLikeStatus, toggleBookmark, getBookmarkStatus, getAuthToken } from '@/lib/api';
+import type { Comment } from '@/lib/api';
 
 interface PostViewProps {
   tweet: Tweet;
@@ -15,13 +16,112 @@ export default function PostView({ tweet }: PostViewProps) {
   const router = useRouter();
   const [isLiked, setIsLiked] = useState(tweet.liked || false);
   const [isRetweeted, setIsRetweeted] = useState(tweet.retweeted || false);
+  const [isBookmarked, setIsBookmarked] = useState(false);
   const [likes, setLikes] = useState(tweet.likes);
   const [retweets, setRetweets] = useState(tweet.retweets);
   const [newComment, setNewComment] = useState('');
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [isLoadingComments, setIsLoadingComments] = useState(true);
+  const [isPostingComment, setIsPostingComment] = useState(false);
 
-  const handleLike = () => {
-    setIsLiked(!isLiked);
-    setLikes(isLiked ? likes - 1 : likes + 1);
+  // Fetch comments on mount
+  useEffect(() => {
+    const loadComments = async () => {
+      setIsLoadingComments(true);
+      try {
+        const response = await fetchComments(tweet.id);
+        if (response.data) {
+          setComments(response.data.comments || []);
+        }
+      } catch (error) {
+        console.error('Error fetching comments:', error);
+      } finally {
+        setIsLoadingComments(false);
+      }
+    };
+
+    loadComments();
+  }, [tweet.id]);
+
+  // Fetch like and bookmark status on mount (only if not already provided in tweet prop)
+  // Use initial state from tweet prop to avoid unnecessary API calls and rate limiting
+  useEffect(() => {
+    const fetchStatus = async () => {
+      const token = getAuthToken();
+      if (!token) return;
+
+      // Use initial state from tweet prop if available
+      if (tweet.liked !== undefined) {
+        setIsLiked(tweet.liked);
+      }
+      if (tweet.bookmarked !== undefined) {
+        setIsBookmarked(tweet.bookmarked);
+      }
+
+      // Only fetch status if we don't have it from the tweet prop
+      // Add a small delay to avoid rate limiting
+      const shouldFetch = tweet.liked === undefined || tweet.bookmarked === undefined;
+      
+      if (shouldFetch) {
+        try {
+          // Add delay to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
+          const [likeStatus, bookmarkStatus] = await Promise.all([
+            getLikeStatus(tweet.id),
+            getBookmarkStatus(tweet.id),
+          ]);
+
+          // Only update if we got valid responses (not 429 errors)
+          if (likeStatus.status === 200 && likeStatus.data) {
+            setIsLiked(likeStatus.data.liked);
+          } else if (likeStatus.status === 429) {
+            console.warn('Rate limited for like status, using initial state from tweet prop');
+          }
+          
+          if (bookmarkStatus.status === 200 && bookmarkStatus.data) {
+            setIsBookmarked(bookmarkStatus.data.bookmarked);
+          } else if (bookmarkStatus.status === 429) {
+            console.warn('Rate limited for bookmark status, using initial state from tweet prop');
+          }
+        } catch (error) {
+          console.error('Error fetching status:', error);
+          // On error, keep using the initial state from tweet prop
+        }
+      }
+    };
+
+    fetchStatus();
+  }, [tweet.id, tweet.liked, tweet.bookmarked]);
+
+  const handleLike = async () => {
+    const token = getAuthToken();
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+
+    // Optimistic update
+    const newLiked = !isLiked;
+    setIsLiked(newLiked);
+    setLikes(newLiked ? likes + 1 : likes - 1);
+
+    try {
+      const response = await reactToPost(tweet.id);
+      if (response.error) {
+        // Revert on error
+        setIsLiked(!newLiked);
+        setLikes(newLiked ? likes : likes + 1);
+        console.error('Error liking post:', response.error);
+      } else if (response.data) {
+        setIsLiked(response.data.liked);
+      }
+    } catch (error) {
+      // Revert on error
+      setIsLiked(!newLiked);
+      setLikes(newLiked ? likes : likes + 1);
+      console.error('Error liking post:', error);
+    }
   };
 
   const handleRetweet = () => {
@@ -29,12 +129,37 @@ export default function PostView({ tweet }: PostViewProps) {
     setRetweets(isRetweeted ? retweets - 1 : retweets + 1);
   };
 
+  const handlePostComment = async () => {
+    if (!newComment.trim() || isPostingComment) return;
+
+    const token = getAuthToken();
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+
+    setIsPostingComment(true);
+    try {
+      const response = await postComment(tweet.id, { content: newComment.trim() });
+      if (response.error) {
+        console.error('Error posting comment:', response.error);
+        alert(response.error);
+      } else if (response.data?.comment) {
+        setComments([response.data.comment, ...comments]);
+        setNewComment('');
+      }
+    } catch (error) {
+      console.error('Error posting comment:', error);
+      alert('Failed to post comment. Please try again.');
+    } finally {
+      setIsPostingComment(false);
+    }
+  };
+
   const handleBack = () => {
     // Navigate back - scroll position will be restored automatically by the home page
     router.push('/');
   };
-
-  const comments = mockComments.filter(c => c.tweetId === tweet.id);
 
   return (
     <div className="bg-background min-h-screen transition-colors">
@@ -55,6 +180,11 @@ export default function PostView({ tweet }: PostViewProps) {
           {/* Profile Picture - Clickable */}
           <Link
             href={`/profile/${tweet.user.username}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              router.push(`/profile/${tweet.user.username}`);
+            }}
             className="flex-shrink-0"
           >
             <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold text-xl shadow-sm hover:opacity-90 transition-opacity cursor-pointer">
@@ -68,6 +198,11 @@ export default function PostView({ tweet }: PostViewProps) {
             <div className="flex items-center space-x-2 mb-2">
               <Link
                 href={`/profile/${tweet.user.username}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  router.push(`/profile/${tweet.user.username}`);
+                }}
                 className="font-bold text-gray-900 dark:text-white text-lg hover:underline cursor-pointer"
               >
                 {tweet.user.name}
@@ -81,6 +216,11 @@ export default function PostView({ tweet }: PostViewProps) {
               )}
               <Link
                 href={`/profile/${tweet.user.username}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  router.push(`/profile/${tweet.user.username}`);
+                }}
                 className="text-muted-foreground hover:underline cursor-pointer"
               >
                 @{tweet.user.username}
@@ -127,7 +267,7 @@ export default function PostView({ tweet }: PostViewProps) {
             <div className="flex items-center justify-between max-w-md">
               <button className="group flex items-center space-x-2 text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors touch-manipulation min-w-[44px] min-h-[44px] justify-center rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/20">
                 <div className="p-2">
-                  <MessageCircle className="w-5 h-5" />
+                  <MessageCircle className="w-4 h-4" />
                 </div>
                 <span className="text-sm">{tweet.replies}</span>
               </button>
@@ -141,7 +281,7 @@ export default function PostView({ tweet }: PostViewProps) {
                 }`}
               >
                 <div className="p-2">
-                  <Repeat2 className="w-5 h-5" />
+                  <Repeat2 className="w-4 h-4" />
                 </div>
                 <span className={`text-sm ${isRetweeted ? 'text-green-600 dark:text-green-400' : ''}`}>
                   {retweets}
@@ -157,16 +297,54 @@ export default function PostView({ tweet }: PostViewProps) {
                 }`}
               >
                 <div className="p-2">
-                  <Heart className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
+                  <Heart className={`w-4 h-4 ${isLiked ? 'fill-current' : ''}`} />
                 </div>
                 <span className={`text-sm ${isLiked ? 'text-red-600 dark:text-red-400' : ''}`}>
                   {likes}
                 </span>
               </button>
 
+              <button
+                onClick={async () => {
+                  const token = getAuthToken();
+                  if (!token) {
+                    router.push('/login');
+                    return;
+                  }
+
+                  // Optimistic update
+                  const newBookmarked = !isBookmarked;
+                  setIsBookmarked(newBookmarked);
+
+                  try {
+                    const response = await toggleBookmark(tweet.id);
+                    if (response.error) {
+                      // Revert on error
+                      setIsBookmarked(!newBookmarked);
+                      console.error('Error bookmarking post:', response.error);
+                    } else if (response.data) {
+                      setIsBookmarked(response.data.bookmarked);
+                    }
+                  } catch (error) {
+                    // Revert on error
+                    setIsBookmarked(!newBookmarked);
+                    console.error('Error bookmarking post:', error);
+                  }
+                }}
+                className={`group flex items-center space-x-2 transition-colors touch-manipulation min-w-[44px] min-h-[44px] justify-center rounded-full ${
+                  isBookmarked
+                    ? 'text-blue-500 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20'
+                }`}
+              >
+                <div className="p-2">
+                  <Bookmark className={`w-4 h-4 ${isBookmarked ? 'fill-current' : ''}`} />
+                </div>
+              </button>
+
               <button className="group flex items-center space-x-2 text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors touch-manipulation min-w-[44px] min-h-[44px] justify-center rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/20">
                 <div className="p-2">
-                  <Share2 className="w-5 h-5" />
+                  <Share2 className="w-4 h-4" />
                 </div>
               </button>
             </div>
@@ -191,10 +369,11 @@ export default function PostView({ tweet }: PostViewProps) {
             />
             <div className="flex items-center justify-end mt-4">
               <button
-                disabled={!newComment.trim()}
+                onClick={handlePostComment}
+                disabled={!newComment.trim() || isPostingComment}
                 className="bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
               >
-                Reply
+                {isPostingComment ? 'Posting...' : 'Reply'}
               </button>
             </div>
           </div>
@@ -203,7 +382,11 @@ export default function PostView({ tweet }: PostViewProps) {
 
       {/* Comments List - Automatically shown */}
       <div>
-        {comments.length > 0 ? (
+        {isLoadingComments ? (
+          <div className="px-4 lg:px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+            <p>Loading comments...</p>
+          </div>
+        ) : comments.length > 0 ? (
           comments.map((comment) => (
             <article
               key={comment.id}
@@ -254,27 +437,53 @@ export default function PostView({ tweet }: PostViewProps) {
                   <div className="flex items-center justify-between max-w-md mt-2">
                     <button className="flex items-center space-x-2 text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors group touch-manipulation min-w-[44px] min-h-[44px] justify-center">
                       <div className="p-2 rounded-full group-hover:bg-blue-50 dark:group-hover:bg-blue-900/20">
-                        <MessageCircle className="w-5 h-5" />
+                        <MessageCircle className="w-4 h-4" />
                       </div>
                       <span className="text-sm hidden sm:inline">{comment.replies}</span>
                     </button>
 
                     <button className="flex items-center space-x-2 text-gray-500 dark:text-gray-400 hover:text-green-500 dark:hover:text-green-400 transition-colors group touch-manipulation min-w-[44px] min-h-[44px] justify-center">
                       <div className="p-2 rounded-full group-hover:bg-green-50 dark:group-hover:bg-green-900/20">
-                        <Repeat2 className="w-5 h-5" />
+                        <Repeat2 className="w-4 h-4" />
                       </div>
                     </button>
 
-                    <button className="flex items-center space-x-2 text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors group touch-manipulation min-w-[44px] min-h-[44px] justify-center">
+                    <button
+                      onClick={async () => {
+                        const token = getAuthToken();
+                        if (!token) {
+                          router.push('/login');
+                          return;
+                        }
+
+                        try {
+                          await likeComment(comment.id);
+                          // Refresh comments to get updated like count
+                          const response = await fetchComments(tweet.id);
+                          if (response.data) {
+                            setComments(response.data.comments || []);
+                          }
+                        } catch (error) {
+                          console.error('Error liking comment:', error);
+                        }
+                      }}
+                      className="flex items-center space-x-2 text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors group touch-manipulation min-w-[44px] min-h-[44px] justify-center"
+                    >
                       <div className="p-2 rounded-full group-hover:bg-red-50 dark:group-hover:bg-red-900/20">
-                        <Heart className="w-5 h-5" />
+                        <Heart className={`w-4 h-4 ${comment.liked ? 'fill-current text-red-500' : ''}`} />
                       </div>
                       <span className="text-sm hidden sm:inline">{comment.likes}</span>
                     </button>
 
                     <button className="flex items-center space-x-2 text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors group touch-manipulation min-w-[44px] min-h-[44px] justify-center">
                       <div className="p-2 rounded-full group-hover:bg-blue-50 dark:group-hover:bg-blue-900/20">
-                        <Share2 className="w-5 h-5" />
+                        <Bookmark className="w-4 h-4" />
+                      </div>
+                    </button>
+
+                    <button className="flex items-center space-x-2 text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors group touch-manipulation min-w-[44px] min-h-[44px] justify-center">
+                      <div className="p-2 rounded-full group-hover:bg-blue-50 dark:group-hover:bg-blue-900/20">
+                        <Share2 className="w-4 h-4" />
                       </div>
                     </button>
                   </div>
