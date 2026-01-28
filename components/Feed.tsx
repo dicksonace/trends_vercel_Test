@@ -71,12 +71,12 @@ export default function Feed({ tweets: initialTweets, highlightedPostId, postRef
   const refreshFeed = async (forceRefresh = false) => {
     const token = getAuthToken();
     if (!token || (activeTab !== 'for-you' && activeTab !== 'following' && activeTab !== 'discover')) {
-      console.log('⚠️ Refresh skipped - No token or invalid tab. Active tab:', activeTab);
+      // console.log('⚠️ Refresh skipped - No token or invalid tab. Active tab:', activeTab);
       return;
     }
 
-    console.log(`🔄 ===== REFRESHING ${activeTab.toUpperCase()} FEED =====`);
-    console.log('🔄 Step 1: Clearing cache and resetting state');
+    // console.log(`🔄 ===== REFRESHING ${activeTab.toUpperCase()} FEED =====`);
+    // console.log('🔄 Step 1: Clearing cache and resetting state');
     setIsRefreshing(true);
     
     // Always clear cache and reset pagination for refresh
@@ -96,59 +96,59 @@ export default function Feed({ tweets: initialTweets, highlightedPostId, postRef
     setLoadedPages(new Set()); // Clear loaded pages tracking
 
     try {
-      console.log('🔄 Step 2: Making API call to get fresh content');
+      // console.log('🔄 Step 2: Making API call to get fresh content');
       
       let feedType: 'for-you' | 'following' | 'trending' = 'for-you';
       if (activeTab === 'following') {
         feedType = 'following';
-        console.log('🔄 Endpoint: /api/v1/following?page=1&pageSize=20');
+        // console.log('🔄 Endpoint: /api/v1/following?page=1&pageSize=20');
       } else if (activeTab === 'discover') {
         feedType = 'trending';
-        console.log('🔄 Endpoint: /api/v1/trending?page=1&pageSize=20');
+        // console.log('🔄 Endpoint: /api/v1/trending?page=1&pageSize=20');
       } else {
-        console.log('🔄 Endpoint: /api/v1/for-you-trends?page=1&pageSize=20');
-        console.log('🔄 Backend uses inRandomOrder() - each request returns different random content');
+        // console.log('🔄 Endpoint: /api/v1/for-you-trends?page=1&pageSize=20');
+        // console.log('🔄 Backend uses inRandomOrder() - each request returns different random content');
       }
       
       let response = await fetchFeed(feedType, 1, 20); // Always start from page 1
       
-      console.log('🔄 Step 3: API Response received');
-      console.log('🔄 Response Status:', response.status);
+      // console.log('🔄 Step 3: API Response received');
+      // console.log('🔄 Response Status:', response.status);
       
       if (response.status === 404) {
-        console.warn('⚠️ All /api/v1/for-you* endpoints returned 404, trying fetch-bits-for-you as fallback...');
-        console.warn('⚠️ NOTE: Bits feed may not use inRandomOrder() - using random page for variety');
+        // console.warn('⚠️ All /api/v1/for-you* endpoints returned 404, trying fetch-bits-for-you as fallback...');
+        // console.warn('⚠️ NOTE: Bits feed may not use inRandomOrder() - using random page for variety');
         // Use a random page between 1 and 20 to get different content on refresh
         // This is a workaround if bits feed doesn't use random ordering
         const randomPage = Math.floor(Math.random() * 20) + 1;
-        console.log('🔄 Using random page', randomPage, 'for bits feed to get different content on refresh');
+        // console.log('🔄 Using random page', randomPage, 'for bits feed to get different content on refresh');
         const bitsResponse = await fetchBitsForYou(randomPage, 20);
         if (bitsResponse.status === 200 && bitsResponse.data) {
-          console.log('✅ Using bits feed as fallback with pagination (page', randomPage, ')');
+          // console.log('✅ Using bits feed as fallback with pagination (page', randomPage, ')');
           response = bitsResponse;
         } else {
           // If random page fails or returns empty, try page 1
-          console.log('⚠️ Random page failed or empty, trying page 1...');
+          // console.log('⚠️ Random page failed or empty, trying page 1...');
           const bitsResponsePage1 = await fetchBitsForYou(1, 20);
           if (bitsResponsePage1.status === 200 && bitsResponsePage1.data) {
-            console.log('✅ Using bits feed as fallback with page 1');
+            // console.log('✅ Using bits feed as fallback with page 1');
             response = bitsResponsePage1;
           }
         }
       }
       
       // Process response (same logic as loadFeed)
-      console.log('🔄 Step 4: Processing response data');
-      console.log('🔄 Response structure:', {
-        hasData: !!response.data,
-        isArray: Array.isArray(response.data),
-        hasDataArray: Array.isArray(response.data?.data),
-        hasPosts: Array.isArray(response.data?.posts),
-        hasTrend: Array.isArray(response.data?.trend),
-        currentPage: response.data?.current_page,
-        lastPage: response.data?.last_page,
-        dataLength: response.data?.data?.length || 0
-      });
+      // console.log('🔄 Step 4: Processing response data');
+      // console.log('🔄 Response structure:', {
+      //   hasData: !!response.data,
+      //   isArray: Array.isArray(response.data),
+      //   hasDataArray: Array.isArray(response.data?.data),
+      //   hasPosts: Array.isArray(response.data?.posts),
+      //   hasTrend: Array.isArray(response.data?.trend),
+      //   currentPage: response.data?.current_page,
+      //   lastPage: response.data?.last_page,
+      //   dataLength: response.data?.data?.length || 0
+      // });
       
       const isDirectArray = Array.isArray(response.data);
       const isDataFormat = Array.isArray(response.data?.data); // Backend format: { data: [...] }
@@ -160,8 +160,8 @@ export default function Feed({ tweets: initialTweets, highlightedPostId, postRef
       
       // Handle backend format: { data: [...], current_page, last_page, success }
       if (isDataFormat && !isBitsFormat) {
-        console.log('🔄 Processing backend FeedResource format');
-        console.log('🔄 Posts count from backend:', response.data.data.length);
+        // console.log('🔄 Processing backend FeedResource format');
+        // console.log('🔄 Posts count from backend:', response.data.data.length);
         convertedTweets = response.data.data.map((post: any) => {
           // Handle avatar URL construction
           let avatarUrl: string | undefined = undefined;
@@ -410,22 +410,22 @@ export default function Feed({ tweets: initialTweets, highlightedPostId, postRef
           setCurrentPage(1);
           // Track that we've loaded page 1 (even if we actually loaded a random page)
           setLoadedPages(new Set([1]));
-          console.log('🔄 Loaded random page', loadedPage, 'for variety, but resetting currentPage to 1 for infinite scroll');
+          // console.log('🔄 Loaded random page', loadedPage, 'for variety, but resetting currentPage to 1 for infinite scroll');
         } else {
           // If no current_page info, assume we're on page 1
           setCurrentPage(1);
           setLoadedPages(new Set([1]));
-          console.log('🔄 No current_page info, assuming page 1');
+          // console.log('🔄 No current_page info, assuming page 1');
         }
         if (response.data?.last_page !== undefined) {
           setLastPage(response.data.last_page);
           // Since we reset to page 1, check if page 1 < last_page
           setHasMore(1 < response.data.last_page);
-          console.log('🔄 Last page:', response.data.last_page);
-          console.log('🔄 Has more pages:', 1 < response.data.last_page);
+          // console.log('🔄 Last page:', response.data.last_page);
+          // console.log('🔄 Has more pages:', 1 < response.data.last_page);
         } else {
           // If no last_page info, assume there's more (for bits feed fallback)
-          console.log('🔄 No last_page info, assuming there are more pages');
+          // console.log('🔄 No last_page info, assuming there are more pages');
           setHasMore(true);
           // Set a reasonable default last_page for bits feed
           setLastPage(100); // Assume there are many pages
@@ -435,17 +435,17 @@ export default function Feed({ tweets: initialTweets, highlightedPostId, postRef
         // Cache is only for initial load
         // Backend uses inRandomOrder(), so each page 1 request returns different random content
         // This means refresh always gets NEW content without needing to track what was seen
-        console.log('✅ ===== REFRESH COMPLETE =====');
-        console.log('✅ Fresh random content loaded from page 1');
-        console.log('✅ Backend uses inRandomOrder() - each refresh gets different random posts');
-        console.log('✅ Total tweets displayed:', convertedTweets.length);
-        console.log('📊 Backend uses inRandomOrder() - each refresh gets different random posts');
+        // console.log('✅ ===== REFRESH COMPLETE =====');
+        // console.log('✅ Fresh random content loaded from page 1');
+        // console.log('✅ Backend uses inRandomOrder() - each refresh gets different random posts');
+        // console.log('✅ Total tweets displayed:', convertedTweets.length);
+        // console.log('📊 Backend uses inRandomOrder() - each refresh gets different random posts');
       } else {
         setIsLoadingFeed(false);
         setTweets([]); // Clear tweets if no content
       }
     } catch (error) {
-      console.error('Error refreshing feed:', error);
+      // console.error('Error refreshing feed:', error);
       setIsLoadingFeed(false); // Clear loading state on error
     } finally {
       setIsRefreshing(false);
@@ -486,7 +486,7 @@ export default function Feed({ tweets: initialTweets, highlightedPostId, postRef
     
     if (isBrowserRefresh || wasRefreshed) {
       if (isBrowserRefresh) {
-        console.log('🔄 Browser refresh detected - clearing cache and fetching fresh random content');
+        // console.log('🔄 Browser refresh detected - clearing cache and fetching fresh random content');
         // Clear cache on browser refresh to ensure fresh content
         sessionStorage.removeItem('feed_cache');
         sessionStorage.removeItem('feed_cache_timestamp');
@@ -496,7 +496,7 @@ export default function Feed({ tweets: initialTweets, highlightedPostId, postRef
       if (wasRefreshed) {
         sessionStorage.removeItem('feed_was_refreshed');
       }
-      console.log('🔄 Page was refreshed - skipping cache, will fetch fresh content');
+      // console.log('🔄 Page was refreshed - skipping cache, will fetch fresh content');
       return; // Skip cache, let loadFeed fetch fresh content
     }
     
@@ -513,7 +513,7 @@ export default function Feed({ tweets: initialTweets, highlightedPostId, postRef
       if (cachedData && cacheTimestamp) {
         const cacheAge = now - parseInt(cacheTimestamp, 10);
         if (cacheAge < CACHE_DURATION) {
-          console.log('✅ Using cached feed data on mount (age:', Math.round(cacheAge / 1000), 'seconds)');
+          // console.log('✅ Using cached feed data on mount (age:', Math.round(cacheAge / 1000), 'seconds)');
           const parsedTweets = JSON.parse(cachedData);
           if (Array.isArray(parsedTweets) && parsedTweets.length > 0) {
             setTweets(parsedTweets);
@@ -521,11 +521,11 @@ export default function Feed({ tweets: initialTweets, highlightedPostId, postRef
             setLoadedPages(new Set([1])); // Track that we've loaded page 1 from cache
           }
         } else {
-          console.log('⚠️ Cache expired, will fetch fresh content');
+          // console.log('⚠️ Cache expired, will fetch fresh content');
         }
       }
     } catch (e) {
-      console.warn('Error reading cache on mount:', e);
+      // console.warn('Error reading cache on mount:', e);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Run once on mount only
@@ -548,6 +548,25 @@ export default function Feed({ tweets: initialTweets, highlightedPostId, postRef
           return;
         }
 
+        // Check if we should refresh (e.g., after composing a post)
+        const shouldRefresh = sessionStorage.getItem('should_refresh_feed') === 'true';
+        if (shouldRefresh) {
+          // console.log('🔄 should_refresh_feed flag detected - refreshing feed');
+          sessionStorage.removeItem('should_refresh_feed');
+          // Force refresh by clearing cache and calling refreshFeed
+          if (activeTab === 'discover') {
+            sessionStorage.removeItem('discover_cache');
+            sessionStorage.removeItem('discover_cache_timestamp');
+            setHasLoadedDiscoverCache(false);
+          } else {
+            sessionStorage.removeItem('feed_cache');
+            sessionStorage.removeItem('feed_cache_timestamp');
+            setHasLoadedFromCache(false);
+          }
+          refreshFeed(true);
+          return;
+        }
+        
         // Check for cached feed data first (if not already loaded)
         const isDiscover = activeTab === 'discover';
         const cacheKey = isDiscover ? 'discover_cache' : 'feed_cache';
@@ -565,7 +584,7 @@ export default function Feed({ tweets: initialTweets, highlightedPostId, postRef
             if (cachedData && cacheTimestamp) {
               const cacheAge = now - parseInt(cacheTimestamp, 10);
               if (cacheAge < CACHE_DURATION) {
-                console.log(`✅ Using cached ${activeTab} feed data (age:`, Math.round(cacheAge / 1000), 'seconds)');
+                // console.log(`✅ Using cached ${activeTab} feed data (age:`, Math.round(cacheAge / 1000), 'seconds)');
                 const parsedTweets = JSON.parse(cachedData);
                 if (Array.isArray(parsedTweets) && parsedTweets.length > 0) {
                   if (isDiscover) {
@@ -579,11 +598,11 @@ export default function Feed({ tweets: initialTweets, highlightedPostId, postRef
                   return; // Use cached data, don't fetch
                 }
               } else {
-                console.log(`⚠️ Cached ${activeTab} feed data expired, fetching fresh data`);
+                // console.log(`⚠️ Cached ${activeTab} feed data expired, fetching fresh data`);
               }
             }
           } catch (e) {
-            console.warn('Error reading cache:', e);
+            // console.warn('Error reading cache:', e);
           }
         } else {
           // Already loaded from cache, skip fetching
@@ -593,6 +612,14 @@ export default function Feed({ tweets: initialTweets, highlightedPostId, postRef
 
         setIsLoadingFeed(true);
         try {
+          // Determine feed type first, before any console.log statements that might reference it
+          let feedType: 'for-you' | 'following' | 'trending' = 'for-you';
+          if (activeTab === 'following') {
+            feedType = 'following';
+          } else if (activeTab === 'discover') {
+            feedType = 'trending';
+          }
+          
           // Check if this is a browser refresh - if so, use random page for variety
           const isBrowserRefreshRandom = sessionStorage.getItem('browser_refresh_random') === 'true';
           let pageToLoad = hasLoadedCache ? currentPage : 1;
@@ -603,56 +630,49 @@ export default function Feed({ tweets: initialTweets, highlightedPostId, postRef
           if (isBrowserRefreshRandom && activeTab === 'for-you' && !hasLoadedCache) {
             const randomPage = Math.floor(Math.random() * 20) + 1;
             pageToLoad = randomPage;
-            console.log('🔄 Browser refresh detected - using random page', randomPage, 'for fresh content');
+            // console.log('🔄 Browser refresh detected - using random page', randomPage, 'for fresh content');
           }
           
           if (activeTab === 'for-you') {
-            console.log('📰 ===== LOADING FOR YOU FEED =====');
-            console.log('📰 Tab: For You');
-            console.log('📰 Page:', pageToLoad, isBrowserRefreshRandom ? '(random for browser refresh)' : '');
-            console.log('📰 Endpoint: /api/v1/for-you-trends?page=' + pageToLoad + '&pageSize=20');
+            // console.log('📰 ===== LOADING FOR YOU FEED =====');
+            // console.log('📰 Tab: For You');
+            // console.log('📰 Page:', pageToLoad, isBrowserRefreshRandom ? '(random for browser refresh)' : '');
+            // console.log('📰 Endpoint: /api/v1/for-you-trends?page=' + pageToLoad + '&pageSize=20');
           } else if (activeTab === 'following') {
-            console.log('👥 ===== LOADING FOLLOWING FEED =====');
-            console.log('👥 Tab: Following');
-            console.log('👥 Page:', pageToLoad);
-            console.log('👥 Endpoint: /api/v1/following?page=' + pageToLoad + '&pageSize=20');
+            // console.log('👥 ===== LOADING FOLLOWING FEED =====');
+            // console.log('👥 Tab: Following');
+            // console.log('👥 Page:', pageToLoad);
+            // console.log('👥 Endpoint: /api/v1/following?page=' + pageToLoad + '&pageSize=20');
           } else if (activeTab === 'discover') {
-            console.log('🔍 ===== LOADING DISCOVER FEED =====');
-            console.log('🔍 Tab: Discover');
-            console.log('🔍 Page:', pageToLoad);
-            console.log('🔍 Endpoint: /api/v1/trending?page=' + pageToLoad + '&pageSize=20');
+            // console.log('🔍 ===== LOADING DISCOVER FEED =====');
+            // console.log('🔍 Tab: Discover');
+            // console.log('🔍 Page:', pageToLoad);
+            // console.log('🔍 Endpoint: /api/v1/trending?page=' + pageToLoad + '&pageSize=20');
           }
           
-          console.log('🔍 DEBUG: Active Tab:', activeTab);
-          console.log('🔍 DEBUG: Feed Type:', feedType);
+          // console.log('🔍 DEBUG: Active Tab:', activeTab);
+          // console.log('🔍 DEBUG: Feed Type:', feedType);
           
-          // Use activeTab to determine feed type
-          let feedType: 'for-you' | 'following' | 'trending' = 'for-you';
-          if (activeTab === 'following') {
-            feedType = 'following';
-          } else if (activeTab === 'discover') {
-            feedType = 'trending';
-          }
           let response = await fetchFeed(feedType, pageToLoad, 20);
           
           // If for-you returns 404, try fetch-bits-for-you as fallback with pagination
           if (response.status === 404) {
-            console.warn('⚠️ /api/v1/for-you returned 404, trying fetch-bits-for-you as fallback...');
+            // console.warn('⚠️ /api/v1/for-you returned 404, trying fetch-bits-for-you as fallback...');
             // If browser refresh, we already have a random page, use it
             // Otherwise, use pageToLoad (which is 1 for initial load)
             const bitsResponse = await fetchBitsForYou(pageToLoad, 20);
             if (bitsResponse.status === 200 && bitsResponse.data) {
-              console.log('✅ Using bits feed as fallback with pagination (page', pageToLoad, ')');
+              // console.log('✅ Using bits feed as fallback with pagination (page', pageToLoad, ')');
               response = bitsResponse;
             }
           }
           
-          console.log('=== Feed Component: Feed Response ===');
-          console.log('Response Status:', response.status);
-          console.log('Response Data:', JSON.stringify(response.data, null, 2));
-          console.log('Response Error:', response.error);
-          console.log('Response Data Type:', typeof response.data);
-          console.log('Response Data Keys:', response.data ? Object.keys(response.data) : 'null');
+          // console.log('=== Feed Component: Feed Response ===');
+          // console.log('Response Status:', response.status);
+          // console.log('Response Data:', JSON.stringify(response.data, null, 2));
+          // console.log('Response Error:', response.error);
+          // console.log('Response Data Type:', typeof response.data);
+          // console.log('Response Data Keys:', response.data ? Object.keys(response.data) : 'null');
           
           // Check if response has posts array (normal feed) or data array (bits feed or backend format)
           // Backend returns: { data: [...], current_page, last_page, success }
@@ -663,21 +683,21 @@ export default function Feed({ tweets: initialTweets, highlightedPostId, postRef
           const isPostsFormat = Array.isArray(response.data?.posts);
           const isTrendFormat = Array.isArray(response.data?.trend);
           
-          console.log('Is Direct Array:', isDirectArray);
-          console.log('Is Data Format (backend):', isDataFormat);
-          console.log('Is Bits Format:', isBitsFormat);
-          console.log('Is Posts Format:', isPostsFormat);
-          console.log('Is Trend Format:', isTrendFormat);
+          // console.log('Is Direct Array:', isDirectArray);
+          // console.log('Is Data Format (backend):', isDataFormat);
+          // console.log('Is Bits Format:', isBitsFormat);
+          // console.log('Is Posts Format:', isPostsFormat);
+          // console.log('Is Trend Format:', isTrendFormat);
           
           let convertedTweets: Tweet[] = [];
           
           // Handle backend format: { data: [...], current_page, last_page, success }
           if (isDataFormat && !isBitsFormat) {
             if (activeTab === 'for-you') {
-              console.log('📰 Processing backend FeedResource format');
-              console.log('📰 Posts count from backend:', response.data.data.length);
-              console.log('📰 Current page:', response.data.current_page);
-              console.log('📰 Last page:', response.data.last_page);
+              // console.log('📰 Processing backend FeedResource format');
+              // console.log('📰 Posts count from backend:', response.data.data.length);
+              // console.log('📰 Current page:', response.data.current_page);
+              // console.log('📰 Last page:', response.data.last_page);
             }
             convertedTweets = response.data.data.map((post: any) => {
               // Handle avatar URL construction
@@ -697,12 +717,12 @@ export default function Feed({ tweets: initialTweets, highlightedPostId, postRef
               
               // Debug logging for discover tab
               if (activeTab === 'discover' || activeTab === 'following') {
-                console.log('🔍 DEBUG: Post ID:', post.id);
-                console.log('🔍 DEBUG: Post images:', post.images);
-                console.log('🔍 DEBUG: Post image_urls:', post.image_urls);
-                console.log('🔍 DEBUG: Post video:', post.video);
-                console.log('🔍 DEBUG: Post videoThumbnail:', post.videoThumbnail);
-                console.log('🔍 DEBUG: Post background:', post.background);
+                // console.log('🔍 DEBUG: Post ID:', post.id);
+                // console.log('🔍 DEBUG: Post images:', post.images);
+                // console.log('🔍 DEBUG: Post image_urls:', post.image_urls);
+                // console.log('🔍 DEBUG: Post video:', post.video);
+                // console.log('🔍 DEBUG: Post videoThumbnail:', post.videoThumbnail);
+                // console.log('🔍 DEBUG: Post background:', post.background);
               }
               
               // Check multiple possible image field names
@@ -733,11 +753,11 @@ export default function Feed({ tweets: initialTweets, highlightedPostId, postRef
                     }
                     const fullUrl = `https://www.trendshub.link/storage/${img}`;
                     if (activeTab === 'discover' || activeTab === 'following') {
-                      console.log('🔍 DEBUG: Converting image URL:', img, '→', fullUrl);
+                      // console.log('🔍 DEBUG: Converting image URL:', img, '→', fullUrl);
                     }
                     return fullUrl;
                   });
-                if (images.length === 0) images = undefined;
+                if (images && images.length === 0) images = undefined;
               } else if (post.image_urls && post.image_urls !== null) {
                 const imageArray = Array.isArray(post.image_urls) ? post.image_urls : [post.image_urls];
                 images = imageArray
@@ -748,11 +768,11 @@ export default function Feed({ tweets: initialTweets, highlightedPostId, postRef
                     }
                     const fullUrl = `https://www.trendshub.link/storage/${img}`;
                     if (activeTab === 'discover' || activeTab === 'following') {
-                      console.log('🔍 DEBUG: Converting image_urls URL:', img, '→', fullUrl);
+                      // console.log('🔍 DEBUG: Converting image_urls URL:', img, '→', fullUrl);
                     }
                     return fullUrl;
                   });
-                if (images.length === 0) images = undefined;
+                if (images && images.length === 0) images = undefined;
               } else if (post.videoThumbnail && post.videoThumbnail !== null) {
                 // Use video thumbnail as image
                 const thumbUrl = post.videoThumbnail.startsWith('http://') || post.videoThumbnail.startsWith('https://')
@@ -760,13 +780,13 @@ export default function Feed({ tweets: initialTweets, highlightedPostId, postRef
                   : `https://www.trendshub.link/storage/${post.videoThumbnail}`;
                 images = [thumbUrl];
                 if (activeTab === 'discover' || activeTab === 'following') {
-                  console.log('🔍 DEBUG: Using videoThumbnail as image:', thumbUrl);
+                  // console.log('🔍 DEBUG: Using videoThumbnail as image:', thumbUrl);
                 }
               } else if (post.video && post.video !== null) {
                 // If there's a video but no thumbnail, we might want to show a placeholder
                 // For now, we'll leave images as undefined and let the video be handled separately
                 if (activeTab === 'discover' || activeTab === 'following') {
-                  console.log('🔍 DEBUG: Post has video but no thumbnail:', post.video);
+                  // console.log('🔍 DEBUG: Post has video but no thumbnail:', post.video);
                 }
               } else if (post.background && post.background !== null) {
                 // Use background as image
@@ -775,7 +795,7 @@ export default function Feed({ tweets: initialTweets, highlightedPostId, postRef
                   : `https://www.trendshub.link/storage/${post.background}`;
                 images = [bgUrl];
                 if (activeTab === 'discover' || activeTab === 'following') {
-                  console.log('🔍 DEBUG: Using background as image:', bgUrl);
+                  // console.log('🔍 DEBUG: Using background as image:', bgUrl);
                 }
               } else if (post.media && post.media !== null) {
                 // Check for media field (could be array of objects with url property)
@@ -789,7 +809,7 @@ export default function Feed({ tweets: initialTweets, highlightedPostId, postRef
                     }
                     const fullUrl = `https://www.trendshub.link/storage/${img}`;
                     if (activeTab === 'discover' || activeTab === 'following') {
-                      console.log('🔍 DEBUG: Converting media URL:', img, '→', fullUrl);
+                      // console.log('🔍 DEBUG: Converting media URL:', img, '→', fullUrl);
                     }
                     return fullUrl;
                   })
@@ -805,16 +825,16 @@ export default function Feed({ tweets: initialTweets, highlightedPostId, postRef
                     }
                     const fullUrl = `https://www.trendshub.link/storage/${img}`;
                     if (activeTab === 'discover' || activeTab === 'following') {
-                      console.log('🔍 DEBUG: Converting media_urls URL:', img, '→', fullUrl);
+                      // console.log('🔍 DEBUG: Converting media_urls URL:', img, '→', fullUrl);
                     }
                     return fullUrl;
                   });
-                if (images.length === 0) images = undefined;
+                if (images && images.length === 0) images = undefined;
               }
               
               if (activeTab === 'discover' || activeTab === 'following') {
-                console.log('🔍 DEBUG: Final images array:', images);
-                console.log('🔍 DEBUG: Images array length:', images?.length || 0);
+                // console.log('🔍 DEBUG: Final images array:', images);
+                // console.log('🔍 DEBUG: Images array length:', images?.length || 0);
               }
               
               const convertedTweet = {
@@ -850,19 +870,19 @@ export default function Feed({ tweets: initialTweets, highlightedPostId, postRef
               };
               
               if (activeTab === 'discover' || activeTab === 'following') {
-                console.log('🔍 DEBUG: Converted tweet:', {
-                  id: convertedTweet.id,
-                  hasImages: !!convertedTweet.images,
-                  imagesCount: convertedTweet.images?.length || 0,
-                  firstImage: convertedTweet.images?.[0]
-                });
+                // console.log('🔍 DEBUG: Converted tweet:', {
+                //   id: convertedTweet.id,
+                //   hasImages: !!convertedTweet.images,
+                //   imagesCount: convertedTweet.images?.length || 0,
+                //   firstImage: convertedTweet.images?.[0]
+                // });
               }
               
               return convertedTweet;
             });
           } else if (isDirectArray) {
             // Response is directly an array (unlikely but handle it)
-            console.log('Processing direct array format, count:', response.data.length);
+            // console.log('Processing direct array format, count:', response.data.length);
             convertedTweets = (response.data as any[]).map((item: any) => {
               // Try to detect if it's a bit or post
               if (item.caption !== undefined || item.video_url !== undefined) {
@@ -934,7 +954,7 @@ export default function Feed({ tweets: initialTweets, highlightedPostId, postRef
             });
           } else if (isPostsFormat && response.data.posts) {
             // Normal feed format: { posts: [...] }
-            console.log('Processing posts format, count:', response.data.posts.length);
+            // console.log('Processing posts format, count:', response.data.posts.length);
             convertedTweets = response.data.posts.map((post: FeedPost) => ({
               id: String(post.id),
               user: {
@@ -957,7 +977,7 @@ export default function Feed({ tweets: initialTweets, highlightedPostId, postRef
             }));
           } else if (isTrendFormat && response.data.trend) {
             // Trend format: { trend: [...] }
-            console.log('Processing trend format, count:', response.data.trend.length);
+            // console.log('Processing trend format, count:', response.data.trend.length);
             convertedTweets = response.data.trend.map((post: any) => ({
               id: String(post.id),
               user: {
@@ -992,8 +1012,8 @@ export default function Feed({ tweets: initialTweets, highlightedPostId, postRef
             }));
           } else if (isBitsFormat && response.data.data) {
             // Bits format: { data: [...] }
-            console.log('Processing bits format, count:', response.data.data.length);
-            console.log('First bit sample:', JSON.stringify(response.data.data[0], null, 2));
+            // console.log('Processing bits format, count:', response.data.data.length);
+            // console.log('First bit sample:', JSON.stringify(response.data.data[0], null, 2));
             convertedTweets = response.data.data.map((bit: any) => {
               // Handle images/video for bits - check for video_url and media_thumbnail_url
               let images: string[] | undefined = undefined;
@@ -1035,23 +1055,23 @@ export default function Feed({ tweets: initialTweets, highlightedPostId, postRef
               };
             });
           } else {
-            console.warn('⚠️ Unknown response format. Response data:', response.data);
-            console.warn('Response data type:', typeof response.data);
+            // console.warn('⚠️ Unknown response format. Response data:', response.data);
+            // console.warn('Response data type:', typeof response.data);
             if (response.data) {
-              console.warn('Response data keys:', Object.keys(response.data));
+              // console.warn('Response data keys:', Object.keys(response.data));
             }
           }
           
-          console.log('Converted Tweets Count:', convertedTweets.length);
-          console.log('Converted Tweets Sample (first 2):', JSON.stringify(convertedTweets.slice(0, 2), null, 2));
+          // console.log('Converted Tweets Count:', convertedTweets.length);
+          // console.log('Converted Tweets Sample (first 2):', JSON.stringify(convertedTweets.slice(0, 2), null, 2));
           
           if (convertedTweets.length > 0) {
             if (activeTab === 'for-you') {
-              console.log('📰 Setting tweets, count:', convertedTweets.length);
+              // console.log('📰 Setting tweets, count:', convertedTweets.length);
             } else if (activeTab === 'following') {
-              console.log('👥 Setting tweets, count:', convertedTweets.length);
+              // console.log('👥 Setting tweets, count:', convertedTweets.length);
             } else if (activeTab === 'discover') {
-              console.log('🔍 Setting discover tweets, count:', convertedTweets.length);
+              // console.log('🔍 Setting discover tweets, count:', convertedTweets.length);
             }
             
             // Check if this is an initial load (not pagination)
@@ -1066,32 +1086,34 @@ export default function Feed({ tweets: initialTweets, highlightedPostId, postRef
               try {
                 sessionStorage.setItem('discover_cache', JSON.stringify(convertedTweets));
                 sessionStorage.setItem('discover_cache_timestamp', Date.now().toString());
-                console.log('🔍 Cached discover feed data');
+                // console.log('🔍 Cached discover feed data');
               } catch (e) {
-                console.warn('Error caching discover feed data:', e);
+                // console.warn('Error caching discover feed data:', e);
               }
             } else if (isInitialLoad) {
               // Replace tweets for initial load (including browser refresh with random page)
               setTweets(convertedTweets);
               if (activeTab === 'for-you') {
                 if (isBrowserRefreshRandom) {
-                  console.log('📰 Replaced all tweets with random page', pageToLoad, 'content (browser refresh)');
+                  // console.log('📰 Replaced all tweets with random page', pageToLoad, 'content (browser refresh)');
                 } else {
-                  console.log('📰 Replaced all tweets with page 1 content');
+                  // console.log('📰 Replaced all tweets with page 1 content');
                 }
               } else if (activeTab === 'following') {
-                console.log('👥 Replaced all tweets with page 1 content');
+                // console.log('👥 Replaced all tweets with page 1 content');
               }
             } else {
-              // Append for pagination
+              // Append for pagination - deduplicate by filtering out items that already exist
               setTweets(prev => {
-                const newTweets = [...prev, ...convertedTweets];
+                const existingIds = new Set(prev.map(t => t.id));
+                const newTweets = convertedTweets.filter(t => !existingIds.has(t.id));
+                const combined = [...prev, ...newTweets];
                 if (activeTab === 'for-you') {
-                  console.log('📰 Appended', convertedTweets.length, 'tweets. Total now:', newTweets.length);
+                  // console.log('📰 Appended', newTweets.length, 'new tweets (filtered', convertedTweets.length - newTweets.length, 'duplicates). Total now:', combined.length);
                 } else if (activeTab === 'following') {
-                  console.log('👥 Appended', convertedTweets.length, 'tweets. Total now:', newTweets.length);
+                  // console.log('👥 Appended', newTweets.length, 'new tweets (filtered', convertedTweets.length - newTweets.length, 'duplicates). Total now:', combined.length);
                 }
-                return newTweets;
+                return combined;
               });
             }
             
@@ -1105,7 +1127,7 @@ export default function Feed({ tweets: initialTweets, highlightedPostId, postRef
                 setCurrentPage(1);
                 setLoadedPages(new Set([1]));
                 if (activeTab === 'for-you') {
-                  console.log('📰 Loaded random page', loadedPage, 'for variety, but resetting currentPage to 1 for infinite scroll');
+                  // console.log('📰 Loaded random page', loadedPage, 'for variety, but resetting currentPage to 1 for infinite scroll');
                 }
               } else {
                 setCurrentPage(loadedPage);
@@ -1113,12 +1135,12 @@ export default function Feed({ tweets: initialTweets, highlightedPostId, postRef
                 setLoadedPages(prev => {
                   const newSet = new Set([...prev, loadedPage]);
                   if (activeTab === 'for-you') {
-                    console.log('📰 Loaded pages so far:', Array.from(newSet));
+                    // console.log('📰 Loaded pages so far:', Array.from(newSet));
                   }
                   return newSet;
                 });
                 if (activeTab === 'for-you') {
-                  console.log('📰 Updated current page to:', loadedPage);
+                  // console.log('📰 Updated current page to:', loadedPage);
                 }
               }
             }
@@ -1129,13 +1151,13 @@ export default function Feed({ tweets: initialTweets, highlightedPostId, postRef
               const hasMorePages = currentPageForCheck < response.data.last_page;
               setHasMore(hasMorePages);
               if (activeTab === 'for-you') {
-                console.log('📰 Last page:', response.data.last_page);
-                console.log('📰 Has more pages:', hasMorePages);
+                // console.log('📰 Last page:', response.data.last_page);
+                // console.log('📰 Has more pages:', hasMorePages);
               }
             } else {
               // If no last_page info, assume there's more (for bits feed fallback)
               if (activeTab === 'for-you') {
-                console.log('📰 No last_page info, assuming there are more pages');
+                // console.log('📰 No last_page info, assuming there are more pages');
               }
               setHasMore(true);
               // Set a reasonable default last_page for bits feed
@@ -1155,25 +1177,25 @@ export default function Feed({ tweets: initialTweets, highlightedPostId, postRef
                 sessionStorage.setItem('feed_cache', JSON.stringify(convertedTweets));
                 sessionStorage.setItem('feed_cache_timestamp', Date.now().toString());
                 if (activeTab === 'for-you') {
-                  console.log('📰 Cached feed data for future loads');
+                  // console.log('📰 Cached feed data for future loads');
                 } else if (activeTab === 'following') {
-                  console.log('👥 Cached feed data for future loads');
+                  // console.log('👥 Cached feed data for future loads');
                 }
               } catch (e) {
-                console.warn('Error caching feed data:', e);
+                // console.warn('Error caching feed data:', e);
               }
             }
             
             if (activeTab === 'for-you') {
-              console.log('✅ ===== FOR YOU FEED LOADED =====');
+              // console.log('✅ ===== FOR YOU FEED LOADED =====');
             } else if (activeTab === 'following') {
-              console.log('✅ ===== FOLLOWING FEED LOADED =====');
+              // console.log('✅ ===== FOLLOWING FEED LOADED =====');
             } else if (activeTab === 'discover') {
-              console.log('✅ ===== DISCOVER FEED LOADED =====');
+              // console.log('✅ ===== DISCOVER FEED LOADED =====');
             }
           } else {
-            console.warn('⚠️ No posts/bits found in response');
-            console.warn('Response data was:', JSON.stringify(response.data, null, 2));
+            // console.warn('⚠️ No posts/bits found in response');
+            // console.warn('Response data was:', JSON.stringify(response.data, null, 2));
             
             // Only set empty array if we don't have cached data
             const cachedData = sessionStorage.getItem('feed_cache');
@@ -1184,7 +1206,7 @@ export default function Feed({ tweets: initialTweets, highlightedPostId, postRef
               try {
                 const parsedTweets = JSON.parse(cachedData);
                 if (Array.isArray(parsedTweets) && parsedTweets.length > 0) {
-                  console.log('✅ Using cached data instead of empty response');
+                  // console.log('✅ Using cached data instead of empty response');
                   setTweets(parsedTweets);
           } else {
             setTweets([]);
@@ -1195,9 +1217,9 @@ export default function Feed({ tweets: initialTweets, highlightedPostId, postRef
             }
           }
         } catch (error) {
-          console.error('=== Feed Component: Error ===');
-          console.error('Error fetching feed:', error);
-          console.error('Error details:', error instanceof Error ? error.message : String(error));
+          // console.error('=== Feed Component: Error ===');
+          // console.error('Error fetching feed:', error);
+          // console.error('Error details:', error instanceof Error ? error.message : String(error));
           
           // On error, try to use cached data
           try {
@@ -1205,20 +1227,20 @@ export default function Feed({ tweets: initialTweets, highlightedPostId, postRef
             if (cachedData) {
               const parsedTweets = JSON.parse(cachedData);
               if (Array.isArray(parsedTweets) && parsedTweets.length > 0) {
-                console.log('✅ Using cached data after error');
+                // console.log('✅ Using cached data after error');
                 setTweets(parsedTweets);
                 setIsLoadingFeed(false);
                 return;
               }
             }
           } catch (e) {
-            console.warn('Error reading cache after error:', e);
+            // console.warn('Error reading cache after error:', e);
           }
           
           setTweets([]);
         } finally {
           setIsLoadingFeed(false);
-          console.log('=== Feed Component: Loading Complete ===');
+          // console.log('=== Feed Component: Loading Complete ===');
         }
       }
     };
@@ -1263,30 +1285,30 @@ export default function Feed({ tweets: initialTweets, highlightedPostId, postRef
       let feedType: 'for-you' | 'following' | 'trending' = 'for-you';
       if (activeTab === 'following') {
         feedType = 'following';
-        console.log('👥 ===== LOADING MORE FOLLOWING FEED =====');
-        console.log('👥 Loading page:', nextPage);
-        console.log('👥 Endpoint: /api/v1/following?page=' + nextPage + '&pageSize=20');
+        // console.log('👥 ===== LOADING MORE FOLLOWING FEED =====');
+        // console.log('👥 Loading page:', nextPage);
+        // console.log('👥 Endpoint: /api/v1/following?page=' + nextPage + '&pageSize=20');
       } else if (activeTab === 'discover') {
         feedType = 'trending';
-        console.log('🔍 ===== LOADING MORE DISCOVER FEED =====');
-        console.log('🔍 Loading page:', nextPage);
-        console.log('🔍 Endpoint: /api/v1/trending?page=' + nextPage + '&pageSize=20');
+        // console.log('🔍 ===== LOADING MORE DISCOVER FEED =====');
+        // console.log('🔍 Loading page:', nextPage);
+        // console.log('🔍 Endpoint: /api/v1/trending?page=' + nextPage + '&pageSize=20');
       } else {
-        console.log('📜 ===== LOADING MORE FOR YOU FEED =====');
-        console.log('📜 Loading page:', nextPage);
-        console.log('📜 Endpoint: /api/v1/for-you-trends?page=' + nextPage + '&pageSize=20');
-        console.log('📜 Backend uses inRandomOrder() - this page will have different random content');
+        // console.log('📜 ===== LOADING MORE FOR YOU FEED =====');
+        // console.log('📜 Loading page:', nextPage);
+        // console.log('📜 Endpoint: /api/v1/for-you-trends?page=' + nextPage + '&pageSize=20');
+        // console.log('📜 Backend uses inRandomOrder() - this page will have different random content');
       }
-      console.log('Current page:', currentPage);
-      console.log('Last page:', lastPage);
+      // console.log('Current page:', currentPage);
+      // console.log('Last page:', lastPage);
       
       let response = await fetchFeed(feedType, nextPage, 20);
       
       if (response.status === 404) {
-        console.warn('⚠️ /api/v1/for-you returned 404, trying fetch-bits-for-you as fallback with pagination...');
+        // console.warn('⚠️ /api/v1/for-you returned 404, trying fetch-bits-for-you as fallback with pagination...');
         const bitsResponse = await fetchBitsForYou(nextPage, 20); // Use nextPage for infinite scroll
         if (bitsResponse.status === 200 && bitsResponse.data) {
-          console.log('✅ Using bits feed as fallback with pagination for page', nextPage);
+          // console.log('✅ Using bits feed as fallback with pagination for page', nextPage);
           response = bitsResponse;
         }
       }
@@ -1348,7 +1370,7 @@ export default function Feed({ tweets: initialTweets, highlightedPostId, postRef
                   if (img.startsWith('http://') || img.startsWith('https://')) return img;
                   return `https://www.trendshub.link/storage/${img}`;
                 });
-              if (images.length === 0) images = undefined;
+              if (images && images.length === 0) images = undefined;
             } else if (post.videoThumbnail && post.videoThumbnail !== null) {
               const thumbUrl = post.videoThumbnail.startsWith('http://') || post.videoThumbnail.startsWith('https://')
                 ? post.videoThumbnail
@@ -1436,10 +1458,19 @@ export default function Feed({ tweets: initialTweets, highlightedPostId, postRef
         
         if (convertedTweets.length > 0) {
           // Append new tweets - handle discover tab separately
+          // Deduplicate by filtering out items that already exist
           if (activeTab === 'discover') {
-            setDiscoverTweets(prev => [...prev, ...convertedTweets]);
+            setDiscoverTweets(prev => {
+              const existingIds = new Set(prev.map(t => t.id));
+              const newTweets = convertedTweets.filter(t => !existingIds.has(t.id));
+              return [...prev, ...newTweets];
+            });
           } else {
-            setTweets(prev => [...prev, ...convertedTweets]);
+            setTweets(prev => {
+              const existingIds = new Set(prev.map(t => t.id));
+              const newTweets = convertedTweets.filter(t => !existingIds.has(t.id));
+              return [...prev, ...newTweets];
+            });
           }
           
           // Update pagination state
@@ -1449,31 +1480,31 @@ export default function Feed({ tweets: initialTweets, highlightedPostId, postRef
             // Track that we've loaded this page
             setLoadedPages(prev => {
               const newSet = new Set([...prev, loadedPage]);
-              console.log('📜 Loaded pages:', Array.from(newSet));
+              // console.log('📜 Loaded pages:', Array.from(newSet));
               return newSet;
             });
-            console.log('📜 Updated current page to:', loadedPage);
+            // console.log('📜 Updated current page to:', loadedPage);
           }
           if (response.data?.last_page !== undefined) {
             setLastPage(response.data.last_page);
             const hasMorePages = response.data.current_page < response.data.last_page;
             setHasMore(hasMorePages);
-            console.log('📜 Last page:', response.data.last_page);
-            console.log('📜 Has more:', hasMorePages);
+            // console.log('📜 Last page:', response.data.last_page);
+            // console.log('📜 Has more:', hasMorePages);
           } else {
             // If no last_page info, assume there's more (for bits feed fallback)
-            console.log('📜 No last_page info, assuming there are more pages');
+            // console.log('📜 No last_page info, assuming there are more pages');
             setHasMore(true);
           }
         } else {
           setHasMore(false);
-          console.log('⚠️ No tweets in response, setting hasMore to false');
+          // console.log('⚠️ No tweets in response, setting hasMore to false');
         }
         
-        console.log('✅ Loaded more content from page', nextPage, '- Total loaded pages:', Array.from(loadedPages));
+        // console.log('✅ Loaded more content from page', nextPage, '- Total loaded pages:', Array.from(loadedPages));
       }
     } catch (error) {
-      console.error('Error loading more feed:', error);
+      // console.error('Error loading more feed:', error);
     } finally {
       setIsLoadingMore(false);
     }
@@ -1676,7 +1707,7 @@ export default function Feed({ tweets: initialTweets, highlightedPostId, postRef
       sessionStorage.removeItem('feed_cache');
       sessionStorage.removeItem('feed_cache_timestamp');
     } catch (e) {
-      console.warn('Error clearing cache:', e);
+      // console.warn('Error clearing cache:', e);
     }
     
     // Reset form

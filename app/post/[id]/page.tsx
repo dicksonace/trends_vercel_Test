@@ -41,11 +41,11 @@ export default function PostPage() {
                 
                 if (found) {
                   cachedPost = found;
-                  console.log(`✅ Found post in cached feed data (key: ${cacheKey}), using cached version`);
+                  // console.log(`✅ Found post in cached feed data (key: ${cacheKey}), using cached version`);
                   break;
                 }
               } catch (parseError) {
-                console.warn(`Error parsing cached feed from ${cacheKey}:`, parseError);
+                // console.warn(`Error parsing cached feed from ${cacheKey}:`, parseError);
               }
             }
           }
@@ -56,50 +56,50 @@ export default function PostPage() {
             return; // Use cached data and skip API call
           }
         } catch (e) {
-          console.error('Error checking cached feed:', e);
+          // console.error('Error checking cached feed:', e);
         }
       }
 
       try {
-        console.log('=== PostPage: Loading Post ===');
-        console.log('Post ID:', id);
+        // console.log('=== PostPage: Loading Post ===');
+        // console.log('Post ID:', id);
         
         const response = await fetchPost(id);
         
-        console.log('PostPage Response Status:', response.status);
-        console.log('PostPage Response Data:', JSON.stringify(response.data, null, 2));
+        // console.log('PostPage Response Status:', response.status);
+        // console.log('PostPage Response Data:', JSON.stringify(response.data, null, 2));
 
         if (response.status === 200 && response.data) {
           // Convert backend post format to Tweet format
           const post = response.data;
           
-          console.log('PostPage: Raw response.data:', JSON.stringify(post, null, 2));
-          console.log('PostPage: Response data type:', typeof post);
-          console.log('PostPage: Response data keys:', post ? Object.keys(post) : 'null');
+          // console.log('PostPage: Raw response.data:', JSON.stringify(post, null, 2));
+          // console.log('PostPage: Response data type:', typeof post);
+          // console.log('PostPage: Response data keys:', post ? Object.keys(post) : 'null');
           
           // Handle different response structures
           let postData = post;
           if (post.trend) {
-            console.log('PostPage: Found post.trend structure');
+            // console.log('PostPage: Found post.trend structure');
             postData = post.trend;
           } else if (post.post) {
-            console.log('PostPage: Found post.post structure');
+            // console.log('PostPage: Found post.post structure');
             postData = post.post;
           } else if (post.data) {
-            console.log('PostPage: Found post.data structure');
+            // console.log('PostPage: Found post.data structure');
             postData = post.data;
           } else if (Array.isArray(post)) {
-            console.log('PostPage: Response is directly an array');
+            // console.log('PostPage: Response is directly an array');
             postData = post;
           } else {
-            console.log('PostPage: Using response.data directly');
+            // console.log('PostPage: Using response.data directly');
             postData = post;
           }
 
           // Check if it's a single post object or an array
           const actualPost = Array.isArray(postData) ? postData[0] : postData;
 
-          console.log('PostPage: Actual post data:', JSON.stringify(actualPost, null, 2));
+          // console.log('PostPage: Actual post data:', JSON.stringify(actualPost, null, 2));
 
           if (actualPost && actualPost.id) {
             // Handle avatar URL construction
@@ -163,15 +163,15 @@ export default function PostPage() {
               } : undefined,
             };
 
-            console.log('✅ Converted Tweet:', JSON.stringify(convertedTweet, null, 2));
+            // console.log('✅ Converted Tweet:', JSON.stringify(convertedTweet, null, 2));
             setTweet(convertedTweet);
           } else {
-            console.error('PostPage: Post data is invalid or missing ID');
-            console.error('Actual post:', actualPost);
+            // console.error('PostPage: Post data is invalid or missing ID');
+            // console.error('Actual post:', actualPost);
             setError('Post not found or invalid data');
           }
         } else if (response.status === 404) {
-          console.error('PostPage: 404 - Post not found');
+          // console.error('PostPage: 404 - Post not found');
           
           // Try to find the post in cached feed data as a fallback (check both cache key formats)
           if (typeof window !== 'undefined') {
@@ -188,11 +188,11 @@ export default function PostPage() {
                     
                     if (found) {
                       cachedPost = found;
-                      console.log(`✅ Found post in cached feed data (key: ${cacheKey}) after 404`);
+                      // console.log(`✅ Found post in cached feed data (key: ${cacheKey}) after 404`);
                       break;
                     }
                   } catch (parseError) {
-                    console.warn(`Error parsing cached feed from ${cacheKey}:`, parseError);
+                    // console.warn(`Error parsing cached feed from ${cacheKey}:`, parseError);
                   }
                 }
               }
@@ -203,12 +203,12 @@ export default function PostPage() {
                 return;
               }
             } catch (e) {
-              console.error('Error checking cached feed:', e);
+              // console.error('Error checking cached feed:', e);
             }
           }
           
           // Last resort: Try fetching from feed and searching for the post
-          console.log('⚠️ Post not found via direct endpoint. Trying to fetch from feed...');
+          // console.log('⚠️ Post not found via direct endpoint. Trying to fetch from feed...');
           try {
             let foundPost: any = null;
             
@@ -231,7 +231,7 @@ export default function PostPage() {
             
             // If not found in regular feed, try bits feed
             if (!foundPost) {
-              console.log('⚠️ Post not found in regular feed. Trying bits feed...');
+              // console.log('⚠️ Post not found in regular feed. Trying bits feed...');
               const bitsResponse = await fetchBitsForYou();
               
               if (bitsResponse.status === 200 && bitsResponse.data) {
@@ -241,7 +241,7 @@ export default function PostPage() {
             }
             
             if (foundPost) {
-              console.log('✅ Found post in feed response');
+              // console.log('✅ Found post in feed response');
               
               // Handle avatar URL construction for bits
               let avatarUrl: string | undefined = undefined;
@@ -307,20 +307,20 @@ export default function PostPage() {
               return;
             }
           } catch (feedError) {
-            console.error('Error fetching from feed as fallback:', feedError);
+            // console.error('Error fetching from feed as fallback:', feedError);
           }
           
           setError(`Post not found. The post with ID ${id} may have been deleted or doesn't exist.`);
         } else if (response.status === 429) {
-          console.error('PostPage: 429 - Too Many Requests');
+          // console.error('PostPage: 429 - Too Many Requests');
           setError('Too many requests. Please wait a moment and try again.');
         } else {
-          console.error('PostPage: Failed to load post. Status:', response.status);
-          console.error('PostPage: Error:', response.error);
+          // console.error('PostPage: Failed to load post. Status:', response.status);
+          // console.error('PostPage: Error:', response.error);
           setError(response.error || 'Failed to load post');
         }
       } catch (err) {
-        console.error('Error loading post:', err);
+        // console.error('Error loading post:', err);
         setError('An error occurred while loading the post');
       } finally {
         setIsLoading(false);

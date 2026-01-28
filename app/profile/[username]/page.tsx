@@ -2,15 +2,16 @@
 
 import { useParams } from 'next/navigation';
 import TweetCard from '@/components/TweetCard';
-import { ArrowLeft, Calendar, MapPin, Link as LinkIcon, Image as ImageIcon, Heart, TrendingUp, Pin, Sparkles, Pencil, MessageCircle, X, Camera, Upload, Loader2 } from 'lucide-react';
+import TweetSkeleton from '@/components/TweetSkeleton';
+import { ArrowLeft, Calendar, MapPin, Link as LinkIcon, Image as ImageIcon, Heart, TrendingUp, Pin, Sparkles, Pencil, MessageCircle, X, Camera, Upload, Loader2, Play } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { getCurrentUser, getAuthToken, fetchUserProfile, fetchUserTrends, updateProfile, updateProfilePicture, updateCoverPicture, getUserBits, type UserProfile, type FeedPost } from '@/lib/api';
 import type { User } from '@/types/auth';
 import type { Tweet } from '@/types';
 
-type TabType = 'posts' | 'replies' | 'media' | 'likes' | 'highlights';
+type TabType = 'posts' | 'bits';
 type UploadType = 'profile' | 'cover' | null;
 
 export default function ProfilePage() {
@@ -29,7 +30,14 @@ export default function ProfilePage() {
   const [userTweets, setUserTweets] = useState<Tweet[]>([]);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [isLoadingPosts, setIsLoadingPosts] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [lastPage, setLastPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [actualUsername, setActualUsername] = useState<string>(username);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [userBits, setUserBits] = useState<Tweet[]>([]);
+  const [isLoadingBits, setIsLoadingBits] = useState(false);
   const [editFormData, setEditFormData] = useState({
     name: '',
     username: '',
@@ -45,23 +53,105 @@ export default function ProfilePage() {
     const loadProfile = async () => {
       setIsLoadingProfile(true);
       
-      // Check if this is the current logged-in user
-      const storedUser = localStorage.getItem('currentUser');
-      if (storedUser) {
+      let resolvedUsername = username;
+      let isCurrentUserProfile = false;
+      
+      // If username is "you", fetch current user's profile
+      if (username === 'you') {
         try {
-          const user: User = JSON.parse(storedUser);
-          if (user.username === username) {
-            setIsCurrentUser(true);
-            setCurrentUser(user);
+          // First, try to get from localStorage
+          const storedUser = localStorage.getItem('currentUser');
+          if (storedUser) {
+            try {
+              const user: User = JSON.parse(storedUser);
+              if (user.username) {
+                resolvedUsername = user.username;
+                isCurrentUserProfile = true;
+                setIsCurrentUser(true);
+                setCurrentUser(user);
+                setActualUsername(user.username);
+              }
+            } catch (e) {
+              // Invalid JSON, continue to API
+            }
           }
-        } catch (e) {
-          // Invalid JSON
+          
+          // If no stored user or no username, try to fetch from API
+          if (!resolvedUsername || resolvedUsername === 'you') {
+            const token = getAuthToken();
+            if (!token) {
+              // No token, redirect to login
+              // console.log('No auth token found, redirecting to login');
+              router.push('/login');
+              return;
+            }
+            
+            // Try to fetch from API, but don't fail if it errors
+            try {
+              const currentUserResponse = await getCurrentUser();
+              if (currentUserResponse.data && currentUserResponse.data.username) {
+                resolvedUsername = currentUserResponse.data.username;
+                isCurrentUserProfile = true;
+                setIsCurrentUser(true);
+                setCurrentUser(currentUserResponse.data);
+                setActualUsername(currentUserResponse.data.username);
+                // Store for future use
+                localStorage.setItem('currentUser', JSON.stringify(currentUserResponse.data));
+              } else {
+                // API returned error but we have token
+                // console.warn('API returned error but token exists. Status:', currentUserResponse.status);
+                // If we still don't have a username, we can't proceed
+                if (!resolvedUsername || resolvedUsername === 'you') {
+                  // console.warn('Cannot resolve username. Redirecting to login.');
+                  router.push('/login');
+                  return;
+                }
+              }
+            } catch (error) {
+              // console.error('Error fetching current user from API:', error);
+              // If API fails but we have stored user data, use it
+              if (!resolvedUsername || resolvedUsername === 'you') {
+                // No stored data and API failed - check if we have token
+                // If token exists, maybe the API is temporarily down, but we should still redirect
+                // since we can't load the profile without a username
+                // console.warn('Cannot resolve username from API or localStorage. Redirecting to login.');
+                router.push('/login');
+                return;
+              }
+              // If we have stored data (resolvedUsername is set), continue with it
+              // console.log('Using stored username:', resolvedUsername);
+            }
+          }
+        } catch (error) {
+          // console.error('Error in profile loading:', error);
+          // Only redirect if we really can't proceed
+          const token = getAuthToken();
+          if (!token) {
+            router.push('/login');
+            return;
+          }
         }
+      } else {
+        // Check if this is the current logged-in user (for any username)
+        const storedUser = localStorage.getItem('currentUser');
+        if (storedUser) {
+          try {
+            const user: User = JSON.parse(storedUser);
+            if (user.username === username) {
+              isCurrentUserProfile = true;
+              setIsCurrentUser(true);
+              setCurrentUser(user);
+            }
+          } catch (e) {
+            // Invalid JSON
+          }
+        }
+        setActualUsername(username);
       }
 
-      // Fetch profile data from API
+      // Fetch profile data from API using resolved username
       try {
-        const response = await fetchUserProfile(username);
+        const response = await fetchUserProfile(resolvedUsername);
         if (response.data) {
           // Handle different response structures
           // Backend might return: { user: {...} } or { data: {...} } or directly {...}
@@ -125,20 +215,22 @@ export default function ProfilePage() {
           
           setProfileData(mappedProfile);
           
-          // Check if this is the current user
-          const token = getAuthToken();
-          if (token) {
-            const currentUserResponse = await getCurrentUser();
-            if (currentUserResponse.data && currentUserResponse.data.username === username) {
-              setIsCurrentUser(true);
-              setCurrentUser(currentUserResponse.data);
+          // Check if this is the current user (if not already set)
+          if (!isCurrentUserProfile) {
+            const token = getAuthToken();
+            if (token) {
+              const currentUserResponse = await getCurrentUser();
+              if (currentUserResponse.data && currentUserResponse.data.username === resolvedUsername) {
+                setIsCurrentUser(true);
+                setCurrentUser(currentUserResponse.data);
+              }
             }
           }
         } else if (response.error) {
-          console.error('Error fetching profile:', response.error);
+          // console.error('Error fetching profile:', response.error);
         }
       } catch (error) {
-        console.error('Error fetching profile:', error);
+        // console.error('Error fetching profile:', error);
       } finally {
         setIsLoadingProfile(false);
       }
@@ -147,54 +239,202 @@ export default function ProfilePage() {
     loadProfile();
   }, [username]);
 
+  // Helper function to convert post to tweet with proper image handling
+  const convertPostToTweet = (post: any): Tweet => {
+    // Handle images - construct full URLs if needed
+    let images: string[] | undefined = undefined;
+    
+    // Handle images field (can be string, array, JSON string, or null)
+    if (post.images && post.images !== null) {
+      let imageArray: any[] = [];
+      
+      // Try to parse if it's a JSON string
+      if (typeof post.images === 'string') {
+        try {
+          const parsed = JSON.parse(post.images);
+          imageArray = Array.isArray(parsed) ? parsed : [parsed];
+        } catch (e) {
+          // Not JSON, treat as single string
+          imageArray = [post.images];
+        }
+      } else if (Array.isArray(post.images)) {
+        imageArray = post.images;
+      } else {
+        imageArray = [post.images];
+      }
+      
+      images = imageArray
+        .filter((img: any) => img !== null && img !== undefined && img !== '' && img !== 'null')
+        .map((img: string) => {
+          if (img.startsWith('http://') || img.startsWith('https://')) {
+            return img;
+          }
+          return `https://www.trendshub.link/storage/${img}`;
+        });
+      if (images.length === 0) images = undefined;
+    } else if (post.image_urls && post.image_urls !== null) {
+      const imageArray = Array.isArray(post.image_urls) ? post.image_urls : [post.image_urls];
+      images = imageArray
+        .filter((img: any) => img !== null && img !== undefined && img !== '' && img !== 'null')
+        .map((img: string) => {
+          if (img.startsWith('http://') || img.startsWith('https://')) {
+            return img;
+          }
+          return `https://www.trendshub.link/storage/${img}`;
+        });
+      if (images && images.length === 0) images = undefined;
+    } else if (post.videoThumbnail && post.videoThumbnail !== null) {
+      const thumbUrl = post.videoThumbnail.startsWith('http://') || post.videoThumbnail.startsWith('https://')
+        ? post.videoThumbnail
+        : `https://www.trendshub.link/storage/${post.videoThumbnail}`;
+      images = [thumbUrl];
+    } else if (post.background && post.background !== null) {
+      const bgUrl = post.background.startsWith('http://') || post.background.startsWith('https://')
+        ? post.background
+        : `https://www.trendshub.link/storage/${post.background}`;
+      images = [bgUrl];
+    }
+    
+    // Handle avatar URL
+    let avatarUrl: string | undefined = undefined;
+    if (post.user?.picture) {
+      if (post.user.picture.startsWith('http://') || post.user.picture.startsWith('https://')) {
+        avatarUrl = post.user.picture;
+      } else {
+        avatarUrl = `https://www.trendshub.link/storage/${post.user.picture}`;
+      }
+    } else if (post.user?.avatar) {
+      avatarUrl = post.user.avatar;
+    }
+    
+    return {
+      id: String(post.id),
+      user: {
+        id: String(post.user?.id || post.user_id || ''),
+        name: post.user?.name || '',
+        username: post.user?.username || '',
+        avatar: avatarUrl || '',
+        verified: post.user?.verification !== null || post.user?.verified || false,
+      },
+      content: post.text || post.content || '',
+      images: images || [],
+      timestamp: post.created_at || post.timestamp || '',
+      likes: post.reactions?.length || post.likes || post.likes_count || 0,
+      retweets: post.retweets || post.shares_count || 0,
+      replies: post.comments?.length || post.replies || post.comments_count || 0,
+      liked: post.reactions?.some((r: any) => r.type === 'like') || post.liked || false,
+      retweeted: post.retweeted || false,
+      bookmarked: post.bookmarked || false,
+      poll: post.poll_question ? {
+        question: post.poll_question,
+        options: post.poll_options ? (Array.isArray(post.poll_options) ? post.poll_options : JSON.parse(post.poll_options)) : [],
+        votes: [],
+        duration: '24 hours',
+        endDate: post.poll_end_date || undefined,
+      } : undefined,
+    };
+  };
+
   // Fetch user's posts
   useEffect(() => {
     const loadPosts = async () => {
+      // Wait for actualUsername to be set if it's "you"
+      if (username === 'you' && actualUsername === 'you') {
+        return; // Wait for profile to load first
+      }
+      
       setIsLoadingPosts(true);
+      setCurrentPage(1);
+      setHasMore(true);
       try {
-        const response = await fetchUserTrends(username);
+        const targetUsername = actualUsername || username;
+        const response = await fetchUserTrends(targetUsername, 1, 20);
         
         // Backend returns 'trend' array instead of 'posts'
-        const postsArray = (response.data as any)?.trend || response.data?.posts || [];
+        const postsArray = (response.data as any)?.trend || response.data?.data || response.data?.posts || [];
         
         if (postsArray.length > 0) {
           // Convert backend post format to Tweet format
-          const convertedTweets: Tweet[] = postsArray.map((post: any) => ({
-            id: String(post.id),
-            user: {
-              id: String(post.user?.id || post.user_id || ''),
-              name: post.user?.name || '',
-              username: post.user?.username || '',
-              avatar: post.user?.picture || post.user?.avatar || undefined,
-              verified: post.user?.verification !== null || post.user?.verified || false,
-            },
-            content: post.text || post.content || '',
-            images: post.images ? (Array.isArray(post.images) ? post.images : [post.images]) : undefined,
-            timestamp: post.created_at || post.timestamp || '',
-            likes: post.reactions?.length || post.likes || 0,
-            retweets: post.retweets || 0,
-            replies: post.comments?.length || post.replies || 0,
-            liked: post.reactions?.some((r: any) => r.type === 'like') || post.liked || false,
-            retweeted: post.retweeted || false,
-            bookmarked: post.bookmarked || false,
-            poll: post.poll_question ? {
-              question: post.poll_question,
-              options: post.poll_options ? (Array.isArray(post.poll_options) ? post.poll_options : JSON.parse(post.poll_options)) : [],
-              votes: [],
-              endDate: post.poll_end_date || undefined,
-            } : undefined,
-          }));
+          const convertedTweets: Tweet[] = postsArray.map((post: any) => convertPostToTweet(post));
           setUserTweets(convertedTweets);
+          
+          // Update pagination info
+          if (response.data?.last_page !== undefined) {
+            setLastPage(response.data.last_page);
+            setHasMore(1 < response.data.last_page);
+          } else if (response.data?.current_page !== undefined) {
+            setLastPage(response.data.current_page);
+            setHasMore(true); // Assume there's more if we don't know
+          }
+        } else {
+          setUserTweets([]);
+          setHasMore(false);
         }
       } catch (error) {
-        console.error('Error fetching user posts:', error);
+        // console.error('Error fetching user posts:', error);
       } finally {
         setIsLoadingPosts(false);
       }
     };
 
     loadPosts();
-  }, [username]);
+  }, [username, actualUsername]);
+
+  // Function to load more posts
+  const loadMorePosts = useCallback(async () => {
+    if (isLoadingMore || !hasMore || isLoadingPosts) return;
+    
+    const nextPage = currentPage + 1;
+    if (nextPage > lastPage) {
+      setHasMore(false);
+      return;
+    }
+    
+    setIsLoadingMore(true);
+    try {
+      const targetUsername = actualUsername || username;
+      const response = await fetchUserTrends(targetUsername, nextPage, 20);
+      
+      const postsArray = (response.data as any)?.trend || response.data?.data || response.data?.posts || [];
+      
+      if (postsArray.length > 0) {
+        const convertedTweets: Tweet[] = postsArray.map((post: any) => convertPostToTweet(post));
+        setUserTweets(prev => [...prev, ...convertedTweets]);
+        setCurrentPage(nextPage);
+        
+        // Update pagination info
+        if (response.data?.last_page !== undefined) {
+          setLastPage(response.data.last_page);
+          setHasMore(nextPage < response.data.last_page);
+        }
+      } else {
+        setHasMore(false);
+      }
+    } catch (error) {
+      // console.error('Error loading more posts:', error);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [isLoadingMore, hasMore, isLoadingPosts, currentPage, lastPage, username, actualUsername]);
+
+  // Infinite scroll handler
+  useEffect(() => {
+    const handleScroll = () => {
+      if (!hasMore || isLoadingMore || isLoadingPosts) return;
+      
+      const scrollY = window.scrollY || window.pageYOffset || document.documentElement.scrollTop;
+      const windowHeight = window.innerHeight;
+      const documentHeight = document.documentElement.scrollHeight;
+      
+      // Load more when within 500px of bottom
+      if (scrollY + windowHeight >= documentHeight - 500) {
+        loadMorePosts();
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [hasMore, isLoadingMore, isLoadingPosts, loadMorePosts]);
 
   // Use profile data or show loading/skeleton
   const user = profileData ? {
@@ -236,18 +476,114 @@ export default function ProfilePage() {
     return `https://www.trendshub.link/storage/${path}`;
   };
 
-  // Get tweets with media
-  const mediaTweets = userTweets.filter(tweet => tweet.images && tweet.images.length > 0);
-  
   // Pinned post (first tweet as pinned if exists)
   const pinnedPost = userTweets.length > 0 ? userTweets[0] : null;
   const regularPosts = userTweets.slice(1);
-  
-  
-  // Highlights (tweets with high engagement)
-  const highlights = userTweets
-    .filter(tweet => (tweet.likes + tweet.retweets) > 200)
-    .sort((a, b) => (b.likes + b.retweets) - (a.likes + a.retweets));
+
+  // Fetch user bits when bits tab is active
+  useEffect(() => {
+    const loadBits = async () => {
+      if (activeTab !== 'bits') return;
+      
+      // Wait for actualUsername to be set if it's "you"
+      if (username === 'you' && actualUsername === 'you') {
+        return; // Wait for profile to load first
+      }
+      
+      setIsLoadingBits(true);
+      try {
+        const targetUsername = actualUsername || username;
+        console.log('🔍 DEBUG: Loading bits for user:', targetUsername);
+        const response = await getUserBits(targetUsername);
+        console.log('🔍 DEBUG: getUserBits response:', response);
+        console.log('🔍 DEBUG: Response status:', response.status);
+        console.log('🔍 DEBUG: Response data:', response.data);
+        console.log('🔍 DEBUG: Response error:', response.error);
+        
+        if (response.status === 200 && response.data) {
+          // Handle different response structures
+          // The API returns: { success: true, data: { user_profile: {...}, bits: Array(20), pagination: {...} } }
+          const bitsArray = response.data?.data?.bits || response.data?.bits || response.data?.data || response.data || [];
+          console.log('🔍 DEBUG: Extracted bits array:', bitsArray);
+          console.log('🔍 DEBUG: Bits array length:', bitsArray.length);
+          
+          if (Array.isArray(bitsArray) && bitsArray.length > 0) {
+            console.log('🔍 DEBUG: First bit sample:', bitsArray[0]);
+            // Convert bits to Tweet format
+            const convertedBits: Tweet[] = bitsArray.map((bit: any) => {
+              let images: string[] | undefined = undefined;
+              if (bit.image_urls) {
+                const imageArray = Array.isArray(bit.image_urls) ? bit.image_urls : [bit.image_urls];
+                images = imageArray
+                  .filter((img: any) => img !== null && img !== undefined && img !== '' && img !== 'null')
+                  .map((img: string) => {
+                    if (img.startsWith('http://') || img.startsWith('https://')) {
+                      return img;
+                    }
+                    return `https://www.trendshub.link/storage/${img}`;
+                  });
+                if (images && images.length === 0) images = undefined;
+              } else if (bit.media_thumbnail_url) {
+                const thumbUrl = bit.media_thumbnail_url.startsWith('http://') || bit.media_thumbnail_url.startsWith('https://')
+                  ? bit.media_thumbnail_url
+                  : `https://www.trendshub.link/storage/${bit.media_thumbnail_url}`;
+                images = [thumbUrl];
+              }
+              
+              // Handle avatar URL
+              let avatarUrl: string | undefined = undefined;
+              if (bit.user?.picture) {
+                if (bit.user.picture.startsWith('http://') || bit.user.picture.startsWith('https://')) {
+                  avatarUrl = bit.user.picture;
+                } else {
+                  avatarUrl = `https://www.trendshub.link/storage/${bit.user.picture}`;
+                }
+              } else if (bit.user?.avatar) {
+                avatarUrl = bit.user.avatar;
+              }
+              
+              return {
+                id: String(bit.id),
+                user: {
+                  id: String(bit.user?.id || ''),
+                  name: bit.user?.name || '',
+                  username: bit.user?.username || '',
+                  avatar: avatarUrl || '',
+                  verified: bit.user?.verification !== null || bit.user?.verified || false,
+                },
+                content: bit.caption || '',
+                images: images || [],
+                video_file: bit.video_url || undefined,
+                timestamp: bit.created_at || '',
+                likes: bit.likes_count || 0,
+                retweets: bit.shares_count || 0,
+                replies: bit.comments_count || 0,
+                liked: false,
+                retweeted: false,
+                bookmarked: false,
+                poll: undefined,
+              };
+            });
+            setUserBits(convertedBits);
+            console.log('🔍 DEBUG: Converted bits:', convertedBits);
+          } else {
+            console.log('🔍 DEBUG: No bits found in response');
+            setUserBits([]);
+          }
+        } else {
+          console.log('🔍 DEBUG: API call failed with status:', response.status);
+          setUserBits([]);
+        }
+      } catch (error) {
+        console.error('🔍 DEBUG: Error fetching user bits:', error);
+        setUserBits([]);
+      } finally {
+        setIsLoadingBits(false);
+      }
+    };
+
+    loadBits();
+  }, [activeTab, username, actualUsername]);
 
   // Handle file selection
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -275,11 +611,11 @@ export default function ProfilePage() {
 
   // Process and upload image
   const handleImageUpload = async (file: File) => {
-    console.log('=== IMAGE UPLOAD START ===');
-    console.log('File name:', file.name);
-    console.log('File type:', file.type);
-    console.log('File size:', file.size, 'bytes');
-    console.log('Upload type:', uploadType);
+    // console.log('=== IMAGE UPLOAD START ===');
+    // console.log('File name:', file.name);
+    // console.log('File type:', file.type);
+    // console.log('File size:', file.size, 'bytes');
+    // console.log('Upload type:', uploadType);
     
     if (!file.type.startsWith('image/')) {
       alert('Please select an image file');
@@ -299,26 +635,26 @@ export default function ProfilePage() {
       const reader = new FileReader();
       reader.onloadend = async () => {
         const base64Image = reader.result as string;
-        console.log('Base64 image length:', base64Image.length);
-        console.log('Base64 preview (first 100 chars):', base64Image.substring(0, 100));
+        // console.log('Base64 image length:', base64Image.length);
+        // console.log('Base64 preview (first 100 chars):', base64Image.substring(0, 100));
         
         try {
           let response;
           if (uploadType === 'profile') {
-            console.log('Calling updateProfilePicture API...');
+            // console.log('Calling updateProfilePicture API...');
             response = await updateProfilePicture(base64Image);
-            console.log('Update Profile Picture Response:', JSON.stringify(response, null, 2));
-            console.log('Response Status:', response.status);
-            console.log('Response Data:', response.data);
-            console.log('Response Error:', response.error);
+            // console.log('Update Profile Picture Response:', JSON.stringify(response, null, 2));
+            // console.log('Response Status:', response.status);
+            // console.log('Response Data:', response.data);
+            // console.log('Response Error:', response.error);
             
             if (response.data?.success && response.data.avatar) {
-              console.log('✅ Profile picture update successful!');
+              // console.log('✅ Profile picture update successful!');
               setProfileImage(response.data.avatar);
               // Reload profile to get updated data
-              console.log('Reloading profile data...');
+              // console.log('Reloading profile data...');
               const profileResponse = await fetchUserProfile(username);
-              console.log('Profile Reload Response:', JSON.stringify(profileResponse, null, 2));
+              // console.log('Profile Reload Response:', JSON.stringify(profileResponse, null, 2));
               
               if (profileResponse.data) {
                 const data = profileResponse.data as any;
@@ -355,25 +691,25 @@ export default function ProfilePage() {
                 setProfileData(mappedProfile);
               }
             } else {
-              console.error('❌ Profile picture update failed:', response.error);
-              console.error('Full error response:', JSON.stringify(response, null, 2));
+              // console.error('❌ Profile picture update failed:', response.error);
+              // console.error('Full error response:', JSON.stringify(response, null, 2));
               alert(response.error || 'Failed to update profile picture');
             }
           } else if (uploadType === 'cover') {
-            console.log('Calling updateCoverPicture API...');
+            // console.log('Calling updateCoverPicture API...');
             response = await updateCoverPicture(base64Image);
-            console.log('Update Cover Picture Response:', JSON.stringify(response, null, 2));
-            console.log('Response Status:', response.status);
-            console.log('Response Data:', response.data);
-            console.log('Response Error:', response.error);
+            // console.log('Update Cover Picture Response:', JSON.stringify(response, null, 2));
+            // console.log('Response Status:', response.status);
+            // console.log('Response Data:', response.data);
+            // console.log('Response Error:', response.error);
             
             if (response.data?.success && response.data.cover) {
-              console.log('✅ Cover picture update successful!');
+              // console.log('✅ Cover picture update successful!');
               setCoverImage(response.data.cover);
               // Reload profile to get updated data
-              console.log('Reloading profile data...');
+              // console.log('Reloading profile data...');
               const profileResponse = await fetchUserProfile(username);
-              console.log('Profile Reload Response:', JSON.stringify(profileResponse, null, 2));
+              // console.log('Profile Reload Response:', JSON.stringify(profileResponse, null, 2));
               
               if (profileResponse.data) {
                 const data = profileResponse.data as any;
@@ -410,32 +746,32 @@ export default function ProfilePage() {
                 setProfileData(mappedProfile);
               }
             } else {
-              console.error('❌ Cover picture update failed:', response.error);
-              console.error('Full error response:', JSON.stringify(response, null, 2));
+              // console.error('❌ Cover picture update failed:', response.error);
+              // console.error('Full error response:', JSON.stringify(response, null, 2));
               alert(response.error || 'Failed to update cover picture');
             }
           }
           
           setIsUploading(false);
           setUploadType(null);
-          console.log('=== IMAGE UPLOAD END ===');
+          // console.log('=== IMAGE UPLOAD END ===');
         } catch (error) {
-          console.error('❌ Exception uploading image:', error);
-          console.error('Error details:', error instanceof Error ? error.message : String(error));
-          console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+          // console.error('❌ Exception uploading image:', error);
+          // console.error('Error details:', error instanceof Error ? error.message : String(error));
+          // console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
           alert('Failed to upload image. Please try again.');
           setIsUploading(false);
-          console.log('=== IMAGE UPLOAD END (ERROR) ===');
+          // console.log('=== IMAGE UPLOAD END (ERROR) ===');
         }
       };
       
       reader.readAsDataURL(file);
     } catch (error) {
-      console.error('❌ Exception reading file:', error);
-      console.error('Error details:', error instanceof Error ? error.message : String(error));
+      // console.error('❌ Exception reading file:', error);
+      // console.error('Error details:', error instanceof Error ? error.message : String(error));
       alert('Failed to read file. Please try again.');
       setIsUploading(false);
-      console.log('=== IMAGE UPLOAD END (ERROR) ===');
+      // console.log('=== IMAGE UPLOAD END (ERROR) ===');
     }
   };
 
@@ -476,8 +812,8 @@ export default function ProfilePage() {
       return;
     }
 
-    console.log('=== UPDATE PROFILE START ===');
-    console.log('Form Data:', JSON.stringify(editFormData, null, 2));
+    // console.log('=== UPDATE PROFILE START ===');
+    // console.log('Form Data:', JSON.stringify(editFormData, null, 2));
     
     setIsSavingProfile(true);
     try {
@@ -496,15 +832,15 @@ export default function ProfilePage() {
         website: websiteText
       };
       
-      console.log('Update Payload:', JSON.stringify(updatePayload, null, 2));
-      console.log('Calling updateProfile API...');
+      // console.log('Update Payload:', JSON.stringify(updatePayload, null, 2));
+      // console.log('Calling updateProfile API...');
       
       const response = await updateProfile(updatePayload);
       
-      console.log('Update Profile API Response:', JSON.stringify(response, null, 2));
-      console.log('Response Status:', response.status);
-      console.log('Response Data:', response.data);
-      console.log('Response Error:', response.error);
+      // console.log('Update Profile API Response:', JSON.stringify(response, null, 2));
+      // console.log('Response Status:', response.status);
+      // console.log('Response Data:', response.data);
+      // console.log('Response Error:', response.error);
 
       // Check for success: either response.data.success === true OR status 200 with success message
       const isSuccess = response.status === 200 && (
@@ -514,11 +850,11 @@ export default function ProfilePage() {
       );
 
       if (isSuccess) {
-        console.log('✅ Profile update successful!');
+        // console.log('✅ Profile update successful!');
         // Reload profile data
-        console.log('Reloading profile data...');
+        // console.log('Reloading profile data...');
         const profileResponse = await fetchUserProfile(username);
-        console.log('Profile Reload Response:', JSON.stringify(profileResponse, null, 2));
+        // console.log('Profile Reload Response:', JSON.stringify(profileResponse, null, 2));
         
         if (profileResponse.data) {
           const data = profileResponse.data as any;
@@ -552,39 +888,95 @@ export default function ProfilePage() {
             following: userData.following_count ?? 0,
             posts: userData.total_posts ?? 0,
           };
-          console.log('Mapped Profile Data:', JSON.stringify(mappedProfile, null, 2));
+          // console.log('Mapped Profile Data:', JSON.stringify(mappedProfile, null, 2));
           setProfileData(mappedProfile);
         }
         setShowEditModal(false);
         // If username changed, redirect to new username
         if (editFormData.username.trim() !== username) {
-          console.log('Username changed, redirecting...');
+          // console.log('Username changed, redirecting...');
           router.push(`/profile/${editFormData.username.trim()}`);
         }
-        console.log('=== UPDATE PROFILE SUCCESS ===');
+        // console.log('=== UPDATE PROFILE SUCCESS ===');
       } else {
-        console.error('❌ Profile update failed:', response.error);
-        console.error('Full error response:', JSON.stringify(response, null, 2));
+        // console.error('❌ Profile update failed:', response.error);
+        // console.error('Full error response:', JSON.stringify(response, null, 2));
         alert(response.error || 'Failed to update profile');
       }
     } catch (error) {
-      console.error('❌ Exception updating profile:', error);
-      console.error('Error details:', error instanceof Error ? error.message : String(error));
-      console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+      // console.error('❌ Exception updating profile:', error);
+      // console.error('Error details:', error instanceof Error ? error.message : String(error));
+      // console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
       alert('Failed to update profile. Please try again.');
     } finally {
       setIsSavingProfile(false);
-      console.log('=== UPDATE PROFILE END ===');
+      // console.log('=== UPDATE PROFILE END ===');
     }
   };
 
-  // Show loading state
+  // Show loading state with skeleton
   if (isLoadingProfile && !user) {
     return (
       <main className="border-x border-border bg-background min-h-screen">
-        <div className="px-4 lg:px-6 py-12 text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-muted-foreground" />
-          <p className="text-muted-foreground">Loading profile...</p>
+        {/* Profile Header Skeleton */}
+        <div className="border-b border-border">
+          {/* Cover Image Skeleton */}
+          <div className="relative h-32 md:h-48 bg-muted animate-pulse">
+            <div className="absolute top-0 left-0 right-0 px-3 md:px-4 lg:px-6 py-2 md:py-4 flex items-center space-x-3 md:space-x-4">
+              <div className="w-8 h-8 rounded-full bg-muted-foreground/20 animate-pulse" />
+              <div>
+                <div className="h-5 w-32 bg-muted-foreground/20 rounded animate-pulse mb-2" />
+                <div className="h-4 w-24 bg-muted-foreground/20 rounded animate-pulse" />
+              </div>
+            </div>
+          </div>
+          
+          {/* Profile Info Skeleton */}
+          <div className="px-3 md:px-4 lg:px-6 pb-3 md:pb-4">
+            <div className="flex items-start md:items-end justify-between -mt-8 md:-mt-16 mb-3 md:mb-4">
+              {/* Profile Picture Skeleton */}
+              <div className="w-20 h-20 md:w-32 md:h-32 rounded-full bg-muted animate-pulse border-2 md:border-4 border-background" />
+              
+              {/* Action Button Skeleton */}
+              <div className="h-9 w-24 md:w-32 bg-muted animate-pulse rounded-full mt-16 md:mt-0" />
+            </div>
+            
+            {/* User Info Skeleton */}
+            <div className="mb-3 md:mb-4">
+              <div className="flex items-center space-x-2 mb-2">
+                <div className="h-6 w-40 bg-muted animate-pulse rounded" />
+                <div className="w-6 h-6 rounded-full bg-muted animate-pulse" />
+              </div>
+              <div className="h-4 w-32 bg-muted animate-pulse rounded mb-3" />
+              
+              {/* Bio Skeleton */}
+              <div className="space-y-2 mb-3">
+                <div className="h-4 w-full bg-muted animate-pulse rounded" />
+                <div className="h-4 w-3/4 bg-muted animate-pulse rounded" />
+              </div>
+              
+              {/* Stats Skeleton */}
+              <div className="flex items-center space-x-4 md:space-x-6">
+                <div className="h-4 w-16 bg-muted animate-pulse rounded" />
+                <div className="h-4 w-16 bg-muted animate-pulse rounded" />
+                <div className="h-4 w-16 bg-muted animate-pulse rounded" />
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Tabs Skeleton */}
+        <div className="flex border-b border-border">
+          <div className="flex-1 h-12 bg-muted/30 animate-pulse" />
+          <div className="flex-1 h-12 bg-muted/30 animate-pulse" />
+          <div className="flex-1 h-12 bg-muted/30 animate-pulse" />
+        </div>
+        
+        {/* Content Skeleton */}
+        <div>
+          {[1, 2, 3].map((i) => (
+            <TweetSkeleton key={i} showImage={i === 1} />
+          ))}
         </div>
       </main>
     );
@@ -798,47 +1190,14 @@ export default function ProfilePage() {
           Posts
         </button>
         <button
-          onClick={() => setActiveTab('replies')}
+          onClick={() => setActiveTab('bits')}
           className={`flex-1 min-w-[70px] md:min-w-[80px] py-2.5 md:py-4 text-center text-sm md:text-base font-semibold transition-colors relative ${
-            activeTab === 'replies'
+            activeTab === 'bits'
               ? 'text-foreground border-b-2 border-blue-500'
               : 'text-muted-foreground hover:text-foreground'
           }`}
         >
-          Replies
-        </button>
-        <button
-          onClick={() => setActiveTab('media')}
-          className={`flex-1 min-w-[70px] md:min-w-[80px] py-2.5 md:py-4 text-center text-sm md:text-base font-semibold transition-colors relative ${
-            activeTab === 'media'
-              ? 'text-foreground border-b-2 border-blue-500'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          Media
-        </button>
-        <button
-          onClick={() => setActiveTab('likes')}
-          className={`flex-1 min-w-[70px] md:min-w-[80px] py-2.5 md:py-4 text-center text-sm md:text-base font-semibold transition-colors relative ${
-            activeTab === 'likes'
-              ? 'text-foreground border-b-2 border-blue-500'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          Likes
-        </button>
-        <button
-          onClick={() => setActiveTab('highlights')}
-          className={`flex-1 min-w-[90px] md:min-w-[100px] py-2.5 md:py-4 text-center text-sm md:text-base font-semibold transition-colors relative ${
-            activeTab === 'highlights'
-              ? 'text-foreground border-b-2 border-blue-500'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <div className="flex items-center justify-center space-x-1">
-            <Sparkles className="w-3.5 h-3.5 md:w-4 md:h-4" />
-            <span>Highlights</span>
-          </div>
+          Bits
         </button>
       </div>
 
@@ -847,9 +1206,10 @@ export default function ProfilePage() {
         {activeTab === 'posts' && (
           <div>
             {isLoadingPosts ? (
-              <div className="px-3 md:px-4 lg:px-6 py-8 md:py-12 text-center">
-                <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-muted-foreground" />
-                <p className="text-muted-foreground">Loading posts...</p>
+              <div>
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <TweetSkeleton key={i} showImage={i % 3 === 0} />
+                ))}
               </div>
             ) : (
               <>
@@ -866,9 +1226,25 @@ export default function ProfilePage() {
                 
                 {/* Regular Posts */}
                 {regularPosts.length > 0 ? (
-                  regularPosts.map((tweet) => (
-                    <TweetCard key={tweet.id} tweet={tweet} />
-                  ))
+                  <>
+                    {regularPosts.map((tweet) => (
+                      <TweetCard key={tweet.id} tweet={tweet} />
+                    ))}
+                    {/* Loading more indicator */}
+                    {isLoadingMore && (
+                      <div>
+                        {[1, 2, 3].map((i) => (
+                          <TweetSkeleton key={`more-${i}`} showImage={i === 2} />
+                        ))}
+                      </div>
+                    )}
+                    {/* End of feed indicator */}
+                    {!hasMore && regularPosts.length > 0 && (
+                      <div className="px-3 md:px-4 lg:px-6 py-8 text-center">
+                        <p className="text-sm text-muted-foreground">You&apos;ve reached the end of the posts</p>
+                      </div>
+                    )}
+                  </>
                 ) : pinnedPost ? null : (
                   <div className="px-3 md:px-4 lg:px-6 py-8 md:py-12">
                     <div className="max-w-md mx-auto text-center">
@@ -893,53 +1269,106 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {activeTab === 'replies' && (
+        {activeTab === 'bits' && (
           <div>
-            <div className="px-4 lg:px-6 py-12">
-              <div className="max-w-md mx-auto text-center">
-                <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
-                  <MessageCircle className="w-8 h-8 text-muted-foreground" />
-                </div>
-                <h3 className="text-xl font-semibold text-foreground mb-2">No replies yet</h3>
-                <p className="text-muted-foreground mb-4">Your replies to other posts will appear here.</p>
-                <div className="bg-muted/50 rounded-lg p-4 text-left">
-                  <p className="text-sm text-muted-foreground mb-2">💡 Tip: Engage with the community by replying to posts you find interesting!</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'media' && (
-          <div>
-            {mediaTweets.length > 0 ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-1 p-1">
-                {mediaTweets.map((tweet) => (
-                  <Link
-                    key={tweet.id}
-                    href={`/post/${tweet.id}`}
-                    className="relative aspect-square group overflow-hidden rounded-lg"
-                  >
-                    {tweet.images && tweet.images[0] && (
-                      <img
-                        src={tweet.images[0]}
-                        alt="Media"
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                      />
-                    )}
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center space-x-4 text-white">
-                        <div className="flex items-center space-x-1">
-                          <Heart className="w-4 h-4" />
-                          <span className="text-sm">{tweet.likes}</span>
+            {isLoadingBits ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-1 md:gap-2 p-1 md:p-2">
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                  <div key={i} className="aspect-[9/16] bg-muted rounded-lg overflow-hidden">
+                    {/* Video thumbnail skeleton */}
+                    <div className="w-full h-full bg-muted animate-pulse relative">
+                      {/* Play button skeleton */}
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="w-12 h-12 bg-background/80 rounded-full animate-pulse flex items-center justify-center">
+                          <Play className="w-6 h-6 text-muted-foreground" />
                         </div>
-                        <div className="flex items-center space-x-1">
-                          <ImageIcon className="w-4 h-4" />
-                          <span className="text-sm">{tweet.replies}</span>
+                      </div>
+                      {/* Bottom info skeleton */}
+                      <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/60 to-transparent">
+                        <div className="h-3 bg-white/20 rounded animate-pulse mb-1"></div>
+                        <div className="flex items-center space-x-2">
+                          <div className="h-2 w-8 bg-white/20 rounded animate-pulse"></div>
+                          <div className="h-2 w-6 bg-white/20 rounded animate-pulse"></div>
                         </div>
                       </div>
                     </div>
-                  </Link>
+                  </div>
+                ))}
+              </div>
+            ) : userBits.length > 0 ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-1 md:gap-2 p-1 md:p-2">
+                {userBits.map((bit) => (
+                  <div 
+                    key={bit.id} 
+                    className="relative aspect-[9/16] bg-muted rounded-lg overflow-hidden group cursor-pointer"
+                    onClick={() => {
+                      // Navigate to bits page and scroll to this specific bit
+                      // For now, just navigate to bits page
+                      router.push('/play');
+                    }}
+                  >
+                    {bit.video_file ? (
+                      <video
+                        src={bit.video_file}
+                        className="w-full h-full object-cover"
+                        muted
+                        loop
+                        onMouseEnter={(e) => {
+                          const video = e.currentTarget;
+                          video.play().catch(() => {});
+                        }}
+                        onMouseLeave={(e) => {
+                          const video = e.currentTarget;
+                          video.pause();
+                          video.currentTime = 0;
+                        }}
+                      />
+                    ) : bit.images && bit.images.length > 0 ? (
+                      <img 
+                        src={bit.images[0]} 
+                        alt={bit.content}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center">
+                        <span className="text-white text-4xl">🎬</span>
+                      </div>
+                    )}
+                    
+                    {/* Overlay with stats */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                      <div className="absolute bottom-2 left-2 right-2 text-white">
+                        <p className="text-xs line-clamp-2 mb-2">{bit.content}</p>
+                        <div className="flex items-center justify-between text-xs">
+                          <div className="flex items-center space-x-2">
+                            <span className="flex items-center space-x-1">
+                              <Heart className="w-3 h-3" />
+                              <span>{bit.likes > 999 ? `${(bit.likes/1000).toFixed(1)}K` : bit.likes}</span>
+                            </span>
+                            <span className="flex items-center space-x-1">
+                              <MessageCircle className="w-3 h-3" />
+                              <span>{bit.replies > 999 ? `${(bit.replies/1000).toFixed(1)}K` : bit.replies}</span>
+                            </span>
+                          </div>
+                          {bit.video_file && (
+                            <div className="flex items-center space-x-1">
+                              <div className="w-2 h-2 bg-white rounded-full"></div>
+                              <span>Video</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Play button overlay for videos */}
+                    {bit.video_file && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="bg-white/20 backdrop-blur-sm rounded-full p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                          <Play className="w-6 h-6 text-white" fill="white" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
             ) : (
@@ -948,109 +1377,16 @@ export default function ProfilePage() {
                   <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
                     <ImageIcon className="w-8 h-8 text-muted-foreground" />
                   </div>
-                  <h3 className="text-xl font-semibold text-foreground mb-2">No media yet</h3>
-                  <p className="text-muted-foreground mb-4">Photos and videos you share will appear here.</p>
-                  <div className="grid grid-cols-3 gap-2 mb-6">
-                    {[1, 2, 3, 4, 5, 6].map((i) => (
-                      <div key={i} className="aspect-square bg-muted rounded-lg flex items-center justify-center">
-                        <ImageIcon className="w-6 h-6 text-muted-foreground opacity-30" />
-                      </div>
-                    ))}
-                  </div>
-                  <button className="bg-black dark:bg-white text-white dark:text-black font-bold py-2 px-6 rounded-full hover:opacity-90 transition-opacity">
-                    Share your first photo
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeTab === 'likes' && (
-          <div>
-            <div className="px-4 lg:px-6 py-12">
-                <div className="max-w-md mx-auto text-center">
-                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
-                    <Heart className="w-8 h-8 text-muted-foreground" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-foreground mb-2">No likes yet</h3>
-                  <p className="text-muted-foreground mb-4">Posts you like will be saved here for easy access.</p>
-                  <div className="bg-muted/50 rounded-lg p-4 text-left mb-6">
-                    <div className="flex items-start space-x-3">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex-shrink-0"></div>
-                      <div className="flex-1">
-                        <div className="h-3 bg-muted-foreground/20 rounded w-3/4 mb-2"></div>
-                        <div className="h-3 bg-muted-foreground/20 rounded w-full mb-2"></div>
-                        <div className="h-3 bg-muted-foreground/20 rounded w-2/3"></div>
-                      </div>
-                    </div>
-                    <div className="mt-3 flex items-center space-x-4 text-sm text-muted-foreground">
-                      <div className="flex items-center space-x-1">
-                        <Heart className="w-4 h-4" />
-                        <span>0</span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <MessageCircle className="w-4 h-4" />
-                        <span>0</span>
-                      </div>
-                    </div>
-                  </div>
-                  <p className="text-sm text-muted-foreground">💡 Start liking posts to build your collection!</p>
-                </div>
-              </div>
-          </div>
-        )}
-
-        {activeTab === 'highlights' && (
-          <div>
-            {highlights.length > 0 ? (
-              <>
-                <div className="px-4 lg:px-6 py-4 border-b border-border bg-gradient-to-r from-blue-50/50 to-purple-50/50 dark:from-blue-900/10 dark:to-purple-900/10">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <Sparkles className="w-5 h-5 text-blue-500" />
-                    <h3 className="font-semibold text-foreground">Top Performing Posts</h3>
-                  </div>
-                  <p className="text-sm text-muted-foreground">Posts with the highest engagement</p>
-                </div>
-                {highlights.map((tweet) => (
-                  <div key={tweet.id} className="border-b border-border relative">
-                    <div className="absolute top-4 right-4 bg-blue-500 text-white text-xs font-semibold px-2 py-1 rounded-full flex items-center space-x-1">
-                      <TrendingUp className="w-3 h-3" />
-                      <span>{(tweet.likes + tweet.retweets).toLocaleString()}</span>
-                    </div>
-                    <TweetCard tweet={tweet} />
-                  </div>
-                ))}
-              </>
-            ) : (
-              <div className="px-4 lg:px-6 py-12">
-                <div className="max-w-md mx-auto text-center">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center mx-auto mb-4">
-                    <Sparkles className="w-8 h-8 text-white" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-foreground mb-2">No highlights yet</h3>
-                  <p className="text-muted-foreground mb-6">Your top-performing posts will automatically appear here.</p>
-                  <div className="bg-gradient-to-r from-blue-50/50 to-purple-50/50 dark:from-blue-900/10 dark:to-purple-900/10 rounded-lg p-6 mb-6">
-                    <div className="flex items-center justify-center space-x-2 mb-3">
-                      <TrendingUp className="w-5 h-5 text-blue-500" />
-                      <span className="font-semibold text-foreground">How to get highlights</span>
-                    </div>
-                    <ul className="text-sm text-muted-foreground text-left space-y-2">
-                      <li className="flex items-start space-x-2">
-                        <span>✨</span>
-                        <span>Create engaging content</span>
-                      </li>
-                      <li className="flex items-start space-x-2">
-                        <span>💬</span>
-                        <span>Interact with your audience</span>
-                      </li>
-                      <li className="flex items-start space-x-2">
-                        <span>📈</span>
-                        <span>Posts with 200+ total engagement appear here</span>
-                      </li>
-                    </ul>
-                  </div>
-                  <p className="text-sm text-muted-foreground">Keep creating great content to see your highlights!</p>
+                  <h3 className="text-xl font-semibold text-foreground mb-2">No bits yet</h3>
+                  <p className="text-muted-foreground mb-4">Your bits will appear here when you create them.</p>
+                  {isCurrentUser && (
+                    <button 
+                      onClick={() => router.push('/play')}
+                      className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-6 rounded-full transition-colors"
+                    >
+                      Create your first bit
+                    </button>
+                  )}
                 </div>
               </div>
             )}

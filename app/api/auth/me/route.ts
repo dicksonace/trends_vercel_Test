@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
       data = await response.json();
     } else {
       const text = await response.text();
-      console.error('Non-JSON response from API:', text);
+      // console.error('Non-JSON response from API:', text);
       return NextResponse.json(
         { error: 'Invalid response from server' },
         { status: 500 }
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(data, { status: response.status });
   } catch (error) {
-    console.error('Get user API error:', error);
+    // console.error('Get user API error:', error);
     return NextResponse.json(
       { 
         error: error instanceof Error ? error.message : 'Internal server error',

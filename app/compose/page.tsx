@@ -9,6 +9,7 @@ export default function ComposePage() {
   const router = useRouter();
   const [trendText, setTrendText] = useState('');
   const [selectedMedia, setSelectedMedia] = useState<string[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]); // Store original File objects for upload
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [emojiSearch, setEmojiSearch] = useState('');
   const [showGifPicker, setShowGifPicker] = useState(false);
@@ -47,13 +48,37 @@ export default function ComposePage() {
     if (files) {
       Array.from(files).forEach((file) => {
         if (file.type.startsWith('image/')) {
+          // Check file size (10MB limit for images)
+          if (file.size > 10 * 1024 * 1024) {
+            alert(`Image "${file.name}" is too large. Maximum size is 10MB.`);
+            return;
+          }
+          
+          // Limit to 4 images
+          if (selectedMedia.filter(m => m.startsWith('data:image/') || m.startsWith('http')).length >= 4) {
+            alert('Maximum 4 images allowed');
+            return;
+          }
+          
+          // Store the original file
+          setSelectedFiles((prev) => [...prev, file]);
+          
           const reader = new FileReader();
           reader.onloadend = () => {
             setSelectedMedia((prev) => [...prev, reader.result as string]);
           };
+          reader.onerror = () => {
+            alert(`Failed to load image "${file.name}"`);
+          };
           reader.readAsDataURL(file);
+        } else {
+          alert(`"${file.name}" is not a valid image file`);
         }
       });
+    }
+    // Reset input to allow selecting the same file again
+    if (e.target) {
+      e.target.value = '';
     }
   };
 
@@ -62,21 +87,48 @@ export default function ComposePage() {
     if (files && files[0]) {
       const file = files[0];
       if (file.type.startsWith('video/')) {
+        // Check file size (50MB limit for videos)
+        if (file.size > 50 * 1024 * 1024) {
+          alert(`Video "${file.name}" is too large. Maximum size is 50MB.`);
+          return;
+        }
+        
+        // Only allow one video
+        const hasVideo = selectedMedia.some(m => m.startsWith('data:video/'));
+        if (hasVideo) {
+          alert('Only one video is allowed per post. Please remove the existing video first.');
+          return;
+        }
+        
+        // Store the original file
+        setSelectedFiles((prev) => [...prev, file]);
+        
         const reader = new FileReader();
         reader.onloadend = () => {
           setSelectedMedia((prev) => [...prev, reader.result as string]);
         };
+        reader.onerror = () => {
+          alert(`Failed to load video "${file.name}"`);
+        };
         reader.readAsDataURL(file);
+      } else {
+        alert(`"${file.name}" is not a valid video file`);
       }
+    }
+    // Reset input to allow selecting the same file again
+    if (e.target) {
+      e.target.value = '';
     }
   };
 
   const removeMedia = (index: number) => {
     setSelectedMedia((prev) => prev.filter((_, i) => i !== index));
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleGifSelect = (gifUrl: string) => {
     setSelectedMedia((prev) => [...prev, gifUrl]);
+    // GIFs are URLs, not files, so we don't add to selectedFiles
     setShowGifPicker(false);
   };
 
@@ -282,39 +334,160 @@ export default function ComposePage() {
     
     // Validate that there's content
     if (!trendText.trim() && selectedMedia.length === 0 && !hasPoll) {
+      alert('Please add some content to your post');
       return;
+    }
+    
+    // Validate poll if it exists
+    if (hasPoll) {
+      const validPollOptions = pollOptions.filter(opt => opt.trim());
+      if (validPollOptions.length < 2) {
+        alert('Please add at least 2 poll options');
+        return;
+      }
     }
     
     setIsPosting(true);
     
     try {
-      // Prepare images array (filter out videos, keep only images)
-      const images = selectedMedia.filter(media => 
-        media.startsWith('data:image/') || media.startsWith('http')
-      );
+      // Separate files from URLs (GIFs)
+      const imageFiles: File[] = [];
+      const videoFiles: File[] = [];
+      const gifUrls: string[] = [];
       
-      // Get video if any
-      const video = selectedMedia.find(media => 
-        media.startsWith('data:video/') || (media.startsWith('http') && !images.includes(media))
-      );
-      
-      // Call API
-      const response = await composeTrend({
-        text: trendText.trim(),
-        images: images.length > 0 ? images : undefined,
-        video_file: video || undefined,
+      selectedMedia.forEach((media, index) => {
+        if (media.startsWith('http') && !media.startsWith('data:')) {
+          // This is a GIF URL
+          gifUrls.push(media);
+        } else if (index < selectedFiles.length) {
+          // This is a file we uploaded
+          const file = selectedFiles[index];
+          if (file.type.startsWith('image/')) {
+            imageFiles.push(file);
+          } else if (file.type.startsWith('video/')) {
+            videoFiles.push(file);
+          }
+        }
       });
       
-      if (response.error) {
-        console.error('Error posting trend:', response.error);
-        alert(response.error);
+      // Prepare request payload - use FormData if we have files, otherwise JSON
+      const hasFiles = imageFiles.length > 0 || videoFiles.length > 0;
+      
+      let payload: FormData | any;
+      
+      if (hasFiles) {
+        // Use FormData for file uploads
+        payload = new FormData();
+        payload.append('text', trendText.trim() || '');
+        
+        // Add image files
+        imageFiles.forEach((file, index) => {
+          payload.append(`images[${index}]`, file);
+        });
+        
+        // Add video file (only one allowed)
+        if (videoFiles.length > 0) {
+          payload.append('video_file', videoFiles[0]);
+        }
+        
+        // Add GIF URLs as JSON string (backend can parse)
+        if (gifUrls.length > 0) {
+          payload.append('gif_urls', JSON.stringify(gifUrls));
+        }
+      } else {
+        // Use JSON for text-only posts or posts with only GIFs
+        payload = {
+          text: trendText.trim() || '',
+        };
+        
+        // Add GIF URLs
+        if (gifUrls.length > 0) {
+          payload.images = gifUrls;
+        }
+      }
+      
+      // Add poll if present (works with both FormData and JSON)
+      if (hasPoll && pollOptions.filter(opt => opt.trim()).length >= 2) {
+        const pollQuestion = trendText.trim() || 'Poll';
+        const pollOpts = pollOptions.filter(opt => opt.trim());
+        
+        if (hasFiles) {
+          payload.append('poll_question', pollQuestion);
+          payload.append('poll_options', JSON.stringify(pollOpts));
+          payload.append('poll_duration', pollDuration);
+        } else {
+          payload.poll_question = pollQuestion;
+          payload.poll_options = pollOpts;
+          payload.poll_duration = pollDuration;
+        }
+      }
+      
+      // Add location if selected
+      if (selectedLocation) {
+        if (hasFiles) {
+          payload.append('location', selectedLocation);
+        } else {
+          payload.location = selectedLocation;
+        }
+      }
+      
+      // Add scheduled time if set
+      if (scheduledDate && scheduledTime) {
+        const scheduledDateTime = new Date(`${scheduledDate}T${scheduledTime}`).toISOString();
+        if (hasFiles) {
+          payload.append('scheduled_at', scheduledDateTime);
+        } else {
+          payload.scheduled_at = scheduledDateTime;
+        }
+      }
+      
+      // console.log('📝 Composing trend:', {
+        text: trendText.trim(),
+        imageFilesCount: imageFiles.length,
+        videoFilesCount: videoFiles.length,
+        gifUrlsCount: gifUrls.length,
+        hasPoll: !!hasPoll,
+        hasLocation: !!selectedLocation,
+        hasScheduled: !!(scheduledDate && scheduledTime),
+        usingFormData: hasFiles,
+      });
+      
+      // Call API
+      const response = await composeTrend(payload, hasFiles);
+      
+      if (response.error || response.status !== 200) {
+        // console.error('❌ Error posting trend:', response.error);
+        // console.error('Response status:', response.status);
+        // console.error('Response data:', response.data);
+        alert(response.error || 'Failed to post trend. Please try again.');
         setIsPosting(false);
         return;
       }
       
+      // Check for success in response
+      const isSuccess = response.status === 200 && (
+        response.data?.success === true ||
+        response.data?.message?.toLowerCase().includes('success') ||
+        response.data?.data
+      );
+      
+      if (!isSuccess) {
+        // console.error('❌ Post failed:', response.data);
+        alert(response.data?.message || 'Failed to post trend. Please try again.');
+        setIsPosting(false);
+        return;
+      }
+      
+      // console.log('✅ Trend posted successfully!');
+      
+      // Set flag to refresh feed when navigating back
+      sessionStorage.setItem('should_refresh_feed', 'true');
+      sessionStorage.setItem('feed_was_refreshed', 'true');
+      
       // Reset form
       setTrendText('');
       setSelectedMedia([]);
+      setSelectedFiles([]);
       setShowEmojiPicker(false);
       setShowGifPicker(false);
       setShowPollCreator(false);
@@ -331,10 +504,11 @@ export default function ComposePage() {
       if (fileInputRef.current) fileInputRef.current.value = '';
       if (videoInputRef.current) videoInputRef.current.value = '';
       
-      // Navigate back to home with feed tab
-      router.push('/?tab=feed');
+      // Navigate back to home with feed tab (refresh feed to show new post)
+      router.push('/?tab=for-you');
     } catch (error) {
-      console.error('Error posting trend:', error);
+      // console.error('❌ Exception posting trend:', error);
+      // console.error('Error details:', error instanceof Error ? error.message : String(error));
       alert('Failed to post trend. Please try again.');
     } finally {
       setIsPosting(false);

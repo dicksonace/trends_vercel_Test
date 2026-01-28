@@ -71,11 +71,11 @@ export function AuthPage() {
 
 		const fetchClientId = async () => {
 			try {
-				console.log('🔍 Fetching Google Client ID from backend...');
+				// console.log('🔍 Fetching Google Client ID from backend...');
 				const response = await fetch('/api/auth/google-client-id');
 				
 				if (!response.ok) {
-					console.error('❌ Failed to fetch Google Client ID:', response.status);
+					// console.error('❌ Failed to fetch Google Client ID:', response.status);
 					setError('Failed to load Google Sign-In configuration');
 					return;
 				}
@@ -83,10 +83,10 @@ export function AuthPage() {
 				const data = await response.json();
 				clientId = data.clientId;
 				
-				console.log('✅ Google Client ID fetched from backend:', clientId ? 'Found' : 'Not found');
+				// console.log('✅ Google Client ID fetched from backend:', clientId ? 'Found' : 'Not found');
 				
 				if (!clientId) {
-					console.error('❌ Google Client ID is missing from backend');
+					// console.error('❌ Google Client ID is missing from backend');
 					setError('Google Sign-In is not configured');
 					return;
 				}
@@ -94,28 +94,28 @@ export function AuthPage() {
 				// Initialize Google Sign-In after fetching client ID
 				initGoogleSignIn(clientId);
 			} catch (error) {
-				console.error('❌ Error fetching Google Client ID:', error);
+				// console.error('❌ Error fetching Google Client ID:', error);
 				setError('Failed to load Google Sign-In configuration');
 			}
 		};
 
 		const initGoogleSignIn = (clientId: string) => {
 			if (typeof window === 'undefined' || !window.google) {
-				console.log('⏳ Waiting for Google script to load...');
+				// console.log('⏳ Waiting for Google script to load...');
 				return;
 			}
 			
 			if (isInitialized) {
-				console.log('⚠️ Google Sign-In already initialized');
+				// console.log('⚠️ Google Sign-In already initialized');
 				return;
 			}
 
 			if (!clientId) {
-				console.error('❌ Google Client ID is missing');
+				// console.error('❌ Google Client ID is missing');
 				return;
 			}
 
-			console.log('✅ Initializing Google Sign-In with client ID from backend...');
+			// console.log('✅ Initializing Google Sign-In with client ID from backend...');
 
 			window.google.accounts.id.initialize({
 				client_id: clientId,
@@ -132,7 +132,7 @@ export function AuthPage() {
 						// Determine if this is sign-up or sign-in based on ref (updated when modals open)
 						const isSignUp = googleAuthModeRef.current === 'signup';
 						
-						console.log('Google auth - mode:', googleAuthModeRef.current, 'isSignUp:', isSignUp);
+						// console.log('Google auth - mode:', googleAuthModeRef.current, 'isSignUp:', isSignUp);
 						
 						// Use googleSignup for sign-up, googleLogin for sign-in
 						const apiResponse = isSignUp 
@@ -179,7 +179,7 @@ export function AuthPage() {
 						}
 						setIsLoading(false);
 					} catch (err) {
-						console.error('Google authentication error:', err);
+						// console.error('Google authentication error:', err);
 						setError(`An unexpected error occurred during Google ${showSignUpModal ? 'signup' : 'login'}`);
 						setIsLoading(false);
 					}
@@ -193,7 +193,7 @@ export function AuthPage() {
 				
 				const googleAccountsId = window.google.accounts.id;
 				const containers = document.querySelectorAll('#google-signin-container');
-				console.log(`🎨 Rendering Google buttons in ${containers.length} containers...`);
+				// console.log(`🎨 Rendering Google buttons in ${containers.length} containers...`);
 				
 				containers.forEach((container, index) => {
 					// Clear container
@@ -211,9 +211,9 @@ export function AuthPage() {
 							width: buttonWidth, // Google SDK requires a number, not percentage
 							text: 'signin_with',
 						});
-						console.log(`✅ Google button rendered in container ${index + 1}`);
+						// console.log(`✅ Google button rendered in container ${index + 1}`);
 					} catch (e) {
-						console.error(`❌ Error rendering Google button in container ${index + 1}:`, e);
+						// console.error(`❌ Error rendering Google button in container ${index + 1}:`, e);
 					}
 				});
 			};
@@ -231,20 +231,20 @@ export function AuthPage() {
 
 		// Wait for Google script to load, then fetch client ID
 		if (window.google) {
-			console.log('✅ Google script already loaded');
+			// console.log('✅ Google script already loaded');
 			fetchClientId();
 		} else {
-			console.log('⏳ Waiting for Google script...');
+			// console.log('⏳ Waiting for Google script...');
 			let attempts = 0;
 			const checkGoogle = setInterval(() => {
 				attempts++;
 				if (window.google) {
-					console.log(`✅ Google script loaded after ${attempts} attempts`);
+					// console.log(`✅ Google script loaded after ${attempts} attempts`);
 					clearInterval(checkGoogle);
 					fetchClientId();
 				}
 				if (attempts > 50) {
-					console.error('❌ Google script failed to load after 5 seconds');
+					// console.error('❌ Google script failed to load after 5 seconds');
 					clearInterval(checkGoogle);
 				}
 			}, 100);

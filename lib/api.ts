@@ -21,7 +21,7 @@ async function apiRequest<T>(
     const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
     const url = `${API_BASE_URL}${path}`;
     
-    console.log('API Request:', { url, method: options.method || 'GET', body: options.body });
+    // console.log('API Request:', { url, method: options.method || 'GET', body: options.body });
     
     const response = await fetch(url, {
       ...options,
@@ -31,8 +31,8 @@ async function apiRequest<T>(
       },
     });
 
-    console.log('API Response Status:', response.status, response.statusText);
-    console.log('API Response Headers:', Object.fromEntries(response.headers.entries()));
+    // console.log('API Response Status:', response.status, response.statusText);
+    // console.log('API Response Headers:', Object.fromEntries(response.headers.entries()));
 
     // Check if response is JSON
     const contentType = response.headers.get('content-type');
@@ -41,19 +41,19 @@ async function apiRequest<T>(
     try {
       if (contentType && contentType.includes('application/json')) {
         data = await response.json();
-        console.log('API Response Data:', data);
+        // console.log('API Response Data:', data);
       } else {
         const text = await response.text();
-        console.error('Non-JSON response:', text);
-        console.error('Response status:', response.status);
+        // console.error('Non-JSON response:', text);
+        // console.error('Response status:', response.status);
         return {
           error: 'Invalid response from server',
           status: response.status,
         };
       }
     } catch (parseError) {
-      console.error('JSON parse error:', parseError);
-      console.error('Response status:', response.status);
+      // console.error('JSON parse error:', parseError);
+      // console.error('Response status:', response.status);
       return {
         error: 'Failed to parse server response',
         status: response.status,
@@ -61,14 +61,14 @@ async function apiRequest<T>(
     }
 
     if (!response.ok) {
-      console.error('API Error Response:', data);
+      // console.error('API Error Response:', data);
       return {
         error: data.message || data.error || 'An error occurred',
         status: response.status,
       };
     }
 
-    console.log('API Success Response:', data);
+    // console.log('API Success Response:', data);
     return {
       data,
       status: response.status,
@@ -300,13 +300,13 @@ export async function googleLogin(
   // Note: Backend uses /google-signup for both login and signup
   const BACKEND_URL = 'https://www.trendshub.link';
   
-  console.log('🚀 Calling Google Login API directly:', `${BACKEND_URL}/google-signup`);
-  console.log('📤 Sending idToken:', idToken ? `${idToken.substring(0, 50)}...` : 'missing');
-  console.log('🌐 Using /google-signup endpoint for both login and signup');
+  // console.log('🚀 Calling Google Login API directly:', `${BACKEND_URL}/google-signup`);
+  // console.log('📤 Sending idToken:', idToken ? `${idToken.substring(0, 50)}...` : 'missing');
+  // console.log('🌐 Using /google-signup endpoint for both login and signup');
   
   // Validate token before sending
   if (!idToken || typeof idToken !== 'string' || idToken.trim().length === 0) {
-    console.error('❌ Invalid idToken provided');
+    // console.error('❌ Invalid idToken provided');
     return {
       error: 'Invalid Google token. Please try signing in again.',
       status: 0,
@@ -316,7 +316,7 @@ export async function googleLogin(
   // Check token format (JWT should have 3 parts separated by dots)
   const tokenParts = idToken.split('.');
   if (tokenParts.length !== 3) {
-    console.error('❌ Invalid JWT format - token should have 3 parts');
+    // console.error('❌ Invalid JWT format - token should have 3 parts');
     return {
       error: 'Invalid Google token format. Please try signing in again.',
       status: 0,
@@ -331,7 +331,7 @@ export async function googleLogin(
     credentials: 'include',
   });
 
-  console.log('📥 Google login response status:', response.status);
+  // console.log('📥 Google login response status:', response.status);
 
   const contentType = response.headers.get('content-type');
   let data: GoogleLoginResponse;
@@ -341,14 +341,14 @@ export async function googleLogin(
       data = await response.json();
     } else {
       const text = await response.text();
-      console.error('Non-JSON response from Google login:', text);
+      // console.error('Non-JSON response from Google login:', text);
       return {
         error: 'Invalid response from server',
         status: response.status,
       };
     }
   } catch (parseError) {
-    console.error('JSON parse error:', parseError);
+    // console.error('JSON parse error:', parseError);
     return {
       error: 'Failed to parse server response',
       status: response.status,
@@ -357,11 +357,11 @@ export async function googleLogin(
 
   if (!response.ok) {
     // Log the full error for debugging
-    console.error('Google login error response:', {
-      status: response.status,
-      data,
-      headers: Object.fromEntries(response.headers.entries()),
-    });
+    // console.error('Google login error response:', {
+    //   status: response.status,
+    //   data,
+    //   headers: Object.fromEntries(response.headers.entries()),
+    // });
     
     // For error responses, data might have different structure
     const errorData = data as any;
@@ -371,8 +371,8 @@ export async function googleLogin(
       const errorMessage = errorData.error || errorData.message || (errorData as any)?.message || 'Unable to verify Google token. Please try again.';
       const errorDetails = errorData.details || errorData.errors || (errorData as any)?.fullError;
       
-      console.error('422 Validation Error Details:', errorDetails);
-      console.error('Full error response:', JSON.stringify(data, null, 2));
+      // console.error('422 Validation Error Details:', errorDetails);
+      // console.error('Full error response:', JSON.stringify(data, null, 2));
       
       // Provide a more user-friendly error message
       let userFriendlyMessage = errorMessage;
@@ -389,7 +389,7 @@ export async function googleLogin(
     // For 400 errors, check if it's a token verification issue
     if (response.status === 400) {
       const errorMessage = errorData.error || errorData.message || (errorData as any)?.message || 'Invalid request';
-      console.error('400 Bad Request Details:', JSON.stringify(data, null, 2));
+      // console.error('400 Bad Request Details:', JSON.stringify(data, null, 2));
       
       return {
         error: errorMessage.includes('token') || errorMessage.includes('verify') 
@@ -471,13 +471,13 @@ export async function googleSignup(
   // This avoids origin issues when proxying through Next.js API route
   const BACKEND_URL = 'https://www.trendshub.link';
   
-  console.log('🚀 Calling Google Signup API directly:', `${BACKEND_URL}/google-signup`);
-  console.log('📤 Sending id_token:', id_token ? `${id_token.substring(0, 50)}...` : 'missing');
-  console.log('🌐 Calling backend directly from client to preserve origin');
+  // console.log('🚀 Calling Google Signup API directly:', `${BACKEND_URL}/google-signup`);
+  // console.log('📤 Sending id_token:', id_token ? `${id_token.substring(0, 50)}...` : 'missing');
+  // console.log('🌐 Calling backend directly from client to preserve origin');
   
   // Validate token before sending
   if (!id_token || typeof id_token !== 'string' || id_token.trim().length === 0) {
-    console.error('❌ Invalid id_token provided');
+    // console.error('❌ Invalid id_token provided');
     return {
       error: 'Invalid Google token. Please try signing in again.',
       status: 0,
@@ -487,7 +487,7 @@ export async function googleSignup(
   // Check token format (JWT should have 3 parts separated by dots)
   const tokenParts = id_token.split('.');
   if (tokenParts.length !== 3) {
-    console.error('❌ Invalid JWT format - token should have 3 parts');
+    // console.error('❌ Invalid JWT format - token should have 3 parts');
     return {
       error: 'Invalid Google token format. Please try signing in again.',
       status: 0,
@@ -501,7 +501,7 @@ export async function googleSignup(
     credentials: 'include',
   });
 
-  console.log('📥 Google signup response status:', response.status);
+  // console.log('📥 Google signup response status:', response.status);
 
   const contentType = response.headers.get('content-type');
   let data: GoogleSignupResponse;
@@ -511,14 +511,14 @@ export async function googleSignup(
       data = await response.json();
     } else {
       const text = await response.text();
-      console.error('Non-JSON response from Google signup:', text);
+      // console.error('Non-JSON response from Google signup:', text);
       return {
         error: 'Invalid response from server',
         status: response.status,
       };
     }
   } catch (parseError) {
-    console.error('JSON parse error:', parseError);
+    // console.error('JSON parse error:', parseError);
     return {
       error: 'Failed to parse server response',
       status: response.status,
@@ -527,11 +527,11 @@ export async function googleSignup(
 
   if (!response.ok) {
     // Log the full error for debugging
-    console.error('Google signup error response:', {
-      status: response.status,
-      data,
-      headers: Object.fromEntries(response.headers.entries()),
-    });
+    // console.error('Google signup error response:', {
+    //   status: response.status,
+    //   data,
+    //   headers: Object.fromEntries(response.headers.entries()),
+    // });
     
     // For error responses, data might have different structure
     const errorData = data as any;
@@ -542,8 +542,8 @@ export async function googleSignup(
       const errorMessage = errorData.error || errorData.message || (errorData as any)?.message || 'Unable to verify Google token. Please try again.';
       const errorDetails = errorData.details || errorData.errors || (errorData as any)?.fullError;
       
-      console.error('422 Validation Error Details:', errorDetails);
-      console.error('Full error response:', JSON.stringify(data, null, 2));
+      // console.error('422 Validation Error Details:', errorDetails);
+      // console.error('Full error response:', JSON.stringify(data, null, 2));
       
       // Provide a more user-friendly error message
       let userFriendlyMessage = errorMessage;
@@ -560,7 +560,7 @@ export async function googleSignup(
     // For 400 errors, check if it's a token verification issue
     if (response.status === 400) {
       const errorMessage = errorData.error || errorData.message || (errorData as any)?.message || 'Invalid request';
-      console.error('400 Bad Request Details:', JSON.stringify(data, null, 2));
+      // console.error('400 Bad Request Details:', JSON.stringify(data, null, 2));
       
       return {
         error: errorMessage.includes('token') || errorMessage.includes('verify') 
@@ -605,7 +605,7 @@ export async function googleSignup(
         localStorage.setItem('currentUser', JSON.stringify(userResponse.data));
       }
     } catch (error) {
-      console.warn('Could not fetch additional user details:', error);
+      // console.warn('Could not fetch additional user details:', error);
       // Not critical, we already have user data from signup response
     }
   }
@@ -673,11 +673,11 @@ async function backendRequest<T>(
   const token = getAuthToken();
   const url = `${BACKEND_BASE_URL}${endpoint}`;
 
-  console.log('=== backendRequest ===');
-  console.log('URL:', url);
-  console.log('Method:', options.method || 'GET');
-  console.log('Has Token:', !!token);
-  console.log('Token Preview:', token ? `${token.substring(0, 20)}...` : 'No token');
+  // console.log('=== backendRequest ===');
+  // console.log('URL:', url);
+  // console.log('Method:', options.method || 'GET');
+  // console.log('Has Token:', !!token);
+  // console.log('Token Preview:', token ? `${token.substring(0, 20)}...` : 'No token');
 
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
@@ -688,12 +688,12 @@ async function backendRequest<T>(
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  console.log('Request Headers:', JSON.stringify(headers, null, 2));
+  // console.log('Request Headers:', JSON.stringify(headers, null, 2));
   if (options.body) {
     const bodyPreview = typeof options.body === 'string' 
       ? (options.body.length > 500 ? `${options.body.substring(0, 500)}... (truncated)` : options.body)
       : options.body;
-    console.log('Request Body Preview:', bodyPreview);
+    // console.log('Request Body Preview:', bodyPreview);
   }
 
   try {
@@ -703,19 +703,19 @@ async function backendRequest<T>(
       credentials: 'include',
     });
 
-    console.log('Response Status:', response.status);
-    console.log('Response OK:', response.ok);
-    console.log('Response Headers:', JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2));
+    // console.log('Response Status:', response.status);
+    // console.log('Response OK:', response.ok);
+    // console.log('Response Headers:', JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2));
 
     const contentType = response.headers.get('content-type');
     let data;
 
     if (contentType && contentType.includes('application/json')) {
       data = await response.json();
-      console.log('Response Data:', JSON.stringify(data, null, 2));
+      // console.log('Response Data:', JSON.stringify(data, null, 2));
     } else {
       const text = await response.text();
-      console.log('Response Text (non-JSON):', text);
+      // console.log('Response Text (non-JSON):', text);
       return {
         error: 'Invalid response from server',
         status: response.status,
@@ -723,8 +723,8 @@ async function backendRequest<T>(
     }
 
     if (!response.ok) {
-      console.error('❌ Response not OK:', response.status);
-      console.error('Error Data:', JSON.stringify(data, null, 2));
+      // console.error('❌ Response not OK:', response.status);
+      // console.error('Error Data:', JSON.stringify(data, null, 2));
       return {
         error: data.message || data.error || 'An error occurred',
         status: response.status,
@@ -732,14 +732,14 @@ async function backendRequest<T>(
       };
     }
 
-    console.log('✅ Response OK');
+    // console.log('✅ Response OK');
     return {
       data,
       status: response.status,
     };
   } catch (error) {
-    console.error('❌ Network Error:', error);
-    console.error('Error details:', error instanceof Error ? error.message : String(error));
+    // console.error('❌ Network Error:', error);
+    // console.error('Error details:', error instanceof Error ? error.message : String(error));
     return {
       error: error instanceof Error ? error.message : 'Network error occurred',
       status: 0,
@@ -761,15 +761,103 @@ export interface ComposeTrendResponse {
   success: boolean;
   message?: string;
   post?: any;
+  data?: any;
 }
 
 export async function composeTrend(
-  data: ComposeTrendRequest
+  data: ComposeTrendRequest | FormData,
+  isFormData: boolean = false
 ): Promise<ApiResponse<ComposeTrendResponse>> {
-  return backendRequest<ComposeTrendResponse>('/api/v1/compose-trend', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
+  // console.log('=== composeTrend API Call ===');
+  // console.log('Endpoint: /api/v1/compose-trend');
+  // console.log('Using FormData:', isFormData);
+  
+  if (isFormData && data instanceof FormData) {
+    // Log FormData contents (without file data)
+    const formDataEntries: Record<string, string> = {};
+    for (const [key, value] of data.entries()) {
+      if (value instanceof File) {
+        formDataEntries[key] = `[File: ${value.name}, ${value.size} bytes, ${value.type}]`;
+      } else {
+        formDataEntries[key] = String(value);
+      }
+    }
+    // console.log('FormData Contents:', formDataEntries);
+  } else {
+    const jsonData = data as ComposeTrendRequest;
+    // console.log('Request Data:', {
+    //   text: jsonData.text,
+    //   hasImages: !!jsonData.images && jsonData.images.length > 0,
+    //   imagesCount: jsonData.images?.length || 0,
+    //   hasVideo: !!jsonData.video_file,
+    // });
+  }
+  
+  const token = getAuthToken();
+  const url = `${BACKEND_BASE_URL}/api/v1/compose-trend`;
+  
+  const headers: HeadersInit = {
+    'Authorization': `Bearer ${token}`,
+  };
+  
+  // Don't set Content-Type for FormData - browser will set it with boundary
+  if (!isFormData) {
+    headers['Content-Type'] = 'application/json';
+  }
+  
+  try {
+    const body = isFormData && data instanceof FormData 
+      ? data 
+      : JSON.stringify(data as ComposeTrendRequest);
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body,
+      credentials: 'include',
+    });
+    
+    // console.log('composeTrend Response Status:', response.status);
+    
+    const contentType = response.headers.get('content-type');
+    let responseData;
+    
+    if (contentType && contentType.includes('application/json')) {
+      responseData = await response.json();
+      // console.log('composeTrend Response Data:', JSON.stringify(responseData, null, 2));
+    } else {
+      const text = await response.text();
+      // console.log('composeTrend Response Text (non-JSON):', text);
+      return {
+        error: 'Invalid response from server',
+        status: response.status,
+      };
+    }
+    
+    if (!response.ok) {
+      // console.error('❌ composeTrend Response not OK:', response.status);
+      return {
+        error: responseData.message || responseData.error || 'An error occurred',
+        status: response.status,
+        data: responseData,
+      };
+    }
+    
+    // console.log('✅ composeTrend Response OK');
+    // console.log('=== composeTrend END ===');
+    
+    return {
+      data: responseData,
+      status: response.status,
+    };
+  } catch (error) {
+    // console.error('❌ composeTrend Network Error:', error);
+    // console.error('Error details:', error instanceof Error ? error.message : String(error));
+    return {
+      error: error instanceof Error ? error.message : 'Network error occurred',
+      status: 0,
+    };
+  }
 }
 
 // ============================================
@@ -813,21 +901,20 @@ export async function fetchFeed(
   page: number = 1,
   pageSize: number = 20
 ): Promise<ApiResponse<any>> {
-  console.log('=== fetchFeed API Call ===');
-  console.log('Type:', type);
-  console.log('Page:', page);
-  console.log('PageSize:', pageSize);
-  console.log('Method: GET');
+  // console.log('=== fetchFeed API Call ===');
+  // console.log('Type:', type);
+  // console.log('Page:', page);
+  // console.log('PageSize:', pageSize);
+  // console.log('Method: GET');
   
   // Try different endpoint formats based on the backend implementation
-  // Backend function is forYouTrends, so try various route formats
-  // Laravel routes can be: camelCase, kebab-case, or snake_case
+  // Prioritize the spec format first: /api/v1/{type}
   const endpoints = [
+    `/api/v1/${type}?page=${page}&pageSize=${pageSize}`,  // Spec format: /api/v1/for-you?page=1&pageSize=20
     `/api/v1/forYouTrends?page=${page}&pageSize=${pageSize}`,  // Try camelCase: forYouTrends (matches function name)
     `/api/v1/for-you-trends?page=${page}&pageSize=${pageSize}`,  // Try kebab-case: for-you-trends
     `/api/v1/for_you_trends?page=${page}&pageSize=${pageSize}`,  // Try snake_case: for_you_trends
     `/api/v1/${type}-trends?page=${page}&pageSize=${pageSize}`,  // Dynamic: for-you-trends
-    `/api/v1/${type}?page=${page}&pageSize=${pageSize}`,  // Simple: /api/v1/for-you?page=1&pageSize=20
     `/api/v1/feed/${type}?page=${page}&pageSize=${pageSize}`,  // Alternative format
     `/api/v1/fetch-feed/${type}?page=${page}&pageSize=${pageSize}`,  // Another alternative
   ];
@@ -835,54 +922,80 @@ export async function fetchFeed(
   let response: ApiResponse<any> = { status: 404, error: 'Endpoint not found' };
   
   for (const endpoint of endpoints) {
-    console.log('Trying endpoint:', endpoint);
-    console.log('Full URL will be: https://www.trendshub.link' + endpoint);
+    // console.log('Trying endpoint:', endpoint);
+    // console.log('Full URL will be: https://www.trendshub.link' + endpoint);
     
     response = await backendRequest<any>(endpoint, {
       method: 'GET',
     });
     
-    console.log('Response Status:', response.status);
-    console.log('Response Data:', JSON.stringify(response.data, null, 2));
+    // console.log('Response Status:', response.status);
+    // console.log('Response Data:', JSON.stringify(response.data, null, 2));
     
     if (response.status === 200 && response.data) {
-      console.log('✅ Successfully fetched from:', endpoint);
+      // console.log('✅ Successfully fetched from:', endpoint);
       break; // Exit loop if successful
     } else if (response.status !== 404) {
       // If it's an error other than 404, break and report it
-      console.error(`❌ Error fetching from ${endpoint}:`, response.error);
+      // console.error(`❌ Error fetching from ${endpoint}:`, response.error);
       break;
     } else {
-      console.warn(`⚠️ Endpoint ${endpoint} returned 404.`);
+      // console.warn(`⚠️ Endpoint ${endpoint} returned 404.`);
     }
   }
   
   if (response.status === 404) {
-    console.warn('❌ All endpoint formats returned 404.');
-    console.warn('Please verify with backend team the correct endpoint for feed type:', type);
+    // console.warn('❌ All endpoint formats returned 404.');
+    // console.warn('Please verify with backend team the correct endpoint for feed type:', type);
   }
   
-  console.log('=== fetchFeed END ===');
+  // console.log('=== fetchFeed END ===');
   
   return response;
 }
 
 export async function fetchUserTrends(
-  username: string
-): Promise<ApiResponse<FeedResponse>> {
-  console.log('=== fetchUserTrends API Call ===');
-  console.log('Endpoint: /api/v1/fetch-user-trends/' + username);
-  console.log('Username:', username);
-  console.log('Method: GET');
+  username: string,
+  page: number = 1,
+  pageSize: number = 20
+): Promise<ApiResponse<any>> {
+  // console.log('=== fetchUserTrends API Call ===');
+  // console.log('Endpoint: /api/v1/fetch-user-trends/' + username);
+  // console.log('Username:', username);
+  // console.log('Page:', page);
+  // console.log('PageSize:', pageSize);
+  // console.log('Method: GET');
   
-  const response = await backendRequest<FeedResponse>(`/api/v1/fetch-user-trends/${username}`, {
-    method: 'GET',
-  });
+  // Try different endpoint formats with pagination
+  const endpoints = [
+    `/api/v1/fetch-user-trends/${username}?page=${page}&pageSize=${pageSize}`,
+    `/api/v1/fetch-user-trends/${username}?page=${page}&per_page=${pageSize}`,
+    `/api/v1/fetch-user-trends/${username}`,
+    `/api/v1/user-trends/${username}?page=${page}&pageSize=${pageSize}`,
+    `/api/v1/users/${username}/trends?page=${page}&pageSize=${pageSize}`,
+  ];
   
-  console.log('fetchUserTrends Response Status:', response.status);
-  console.log('fetchUserTrends Response Data:', JSON.stringify(response.data, null, 2));
-  console.log('fetchUserTrends Response Error:', response.error);
-  console.log('=== fetchUserTrends END ===');
+  let response: ApiResponse<any> = { status: 404, error: 'Endpoint not found' };
+  
+  for (const endpoint of endpoints) {
+    // console.log('Trying endpoint:', endpoint);
+    response = await backendRequest<any>(endpoint, {
+      method: 'GET',
+    });
+    
+    if (response.status === 200 && response.data) {
+      // console.log('✅ Successfully fetched from:', endpoint);
+      break;
+    } else if (response.status !== 404) {
+      // console.error(`❌ Error fetching from ${endpoint}:`, response.error);
+      break;
+    }
+  }
+  
+  // console.log('fetchUserTrends Response Status:', response.status);
+  // console.log('fetchUserTrends Response Data:', JSON.stringify(response.data, null, 2));
+  // console.log('fetchUserTrends Response Error:', response.error);
+  // console.log('=== fetchUserTrends END ===');
   
   return response;
 }
@@ -891,11 +1004,11 @@ export async function fetchBitsForYou(
   page: number = 1,
   pageSize: number = 20
 ): Promise<ApiResponse<FeedResponse>> {
-  console.log('=== fetchBitsForYou API Call ===');
-  console.log('Endpoint: /api/v1/fetch-bits-for-you');
-  console.log('Page:', page);
-  console.log('PageSize:', pageSize);
-  console.log('Method: GET');
+  // console.log('=== fetchBitsForYou API Call ===');
+  // console.log('Endpoint: /api/v1/fetch-bits-for-you');
+  // console.log('Page:', page);
+  // console.log('PageSize:', pageSize);
+  // console.log('Method: GET');
   
   // Try with pagination parameters
   const endpoints = [
@@ -906,24 +1019,24 @@ export async function fetchBitsForYou(
   let response: ApiResponse<FeedResponse> = { status: 404, error: 'Bits feed not found' };
   
   for (const endpoint of endpoints) {
-    console.log('Trying bits endpoint:', endpoint);
+    // console.log('Trying bits endpoint:', endpoint);
     response = await backendRequest<FeedResponse>(endpoint, {
       method: 'GET',
     });
     
     if (response.status === 200 && response.data) {
-      console.log('✅ Successfully fetched bits from:', endpoint);
+      // console.log('✅ Successfully fetched bits from:', endpoint);
       break;
     } else if (response.status !== 404) {
-      console.error(`❌ Error fetching bits from ${endpoint}:`, response.error);
+      // console.error(`❌ Error fetching bits from ${endpoint}:`, response.error);
       break;
     }
   }
   
-  console.log('fetchBitsForYou Response Status:', response.status);
-  console.log('fetchBitsForYou Response Data:', JSON.stringify(response.data, null, 2));
-  console.log('fetchBitsForYou Response Error:', response.error);
-  console.log('=== fetchBitsForYou END ===');
+  // console.log('fetchBitsForYou Response Status:', response.status);
+  // console.log('fetchBitsForYou Response Data:', JSON.stringify(response.data, null, 2));
+  // console.log('fetchBitsForYou Response Error:', response.error);
+  // console.log('=== fetchBitsForYou END ===');
   
   return response;
 }
@@ -936,20 +1049,20 @@ export interface SearchTrendsRequest {
 export async function searchTrends(
   data: SearchTrendsRequest
 ): Promise<ApiResponse<FeedResponse>> {
-  console.log('=== searchTrends API Call ===');
-  console.log('Endpoint: /api/v1/search-trends');
-  console.log('Method: POST');
-  console.log('Request Data:', JSON.stringify(data, null, 2));
+  // console.log('=== searchTrends API Call ===');
+  // console.log('Endpoint: /api/v1/search-trends');
+  // console.log('Method: POST');
+  // console.log('Request Data:', JSON.stringify(data, null, 2));
   
   const response = await backendRequest<FeedResponse>('/api/v1/search-trends', {
     method: 'POST',
     body: JSON.stringify(data),
   });
   
-  console.log('searchTrends Response Status:', response.status);
-  console.log('searchTrends Response Data:', JSON.stringify(response.data, null, 2));
-  console.log('searchTrends Response Error:', response.error);
-  console.log('=== searchTrends END ===');
+  // console.log('searchTrends Response Status:', response.status);
+  // console.log('searchTrends Response Data:', JSON.stringify(response.data, null, 2));
+  // console.log('searchTrends Response Error:', response.error);
+  // console.log('=== searchTrends END ===');
   
   return response;
 }
@@ -957,19 +1070,19 @@ export async function searchTrends(
 export async function fetchHashtag(
   hashtag: string
 ): Promise<ApiResponse<FeedResponse>> {
-  console.log('=== fetchHashtag API Call ===');
-  console.log('Endpoint: /api/v1/fetch-hashtag/' + hashtag);
-  console.log('Hashtag:', hashtag);
-  console.log('Method: GET');
+  // console.log('=== fetchHashtag API Call ===');
+  // console.log('Endpoint: /api/v1/fetch-hashtag/' + hashtag);
+  // console.log('Hashtag:', hashtag);
+  // console.log('Method: GET');
   
   const response = await backendRequest<FeedResponse>(`/api/v1/fetch-hashtag/${hashtag}`, {
     method: 'GET',
   });
   
-  console.log('fetchHashtag Response Status:', response.status);
-  console.log('fetchHashtag Response Data:', JSON.stringify(response.data, null, 2));
-  console.log('fetchHashtag Response Error:', response.error);
-  console.log('=== fetchHashtag END ===');
+  // console.log('fetchHashtag Response Status:', response.status);
+  // console.log('fetchHashtag Response Data:', JSON.stringify(response.data, null, 2));
+  // console.log('fetchHashtag Response Error:', response.error);
+  // console.log('=== fetchHashtag END ===');
   
   return response;
 }
@@ -1026,20 +1139,65 @@ export async function postComment(
   });
 }
 
+// Updated comment functions to use Next.js API routes (no more CORS issues)
 export async function likeComment(
   commentId: string
 ): Promise<ApiResponse<{ success: boolean; message?: string }>> {
-  return backendRequest(`/api/v1/comments/${commentId}/like`, {
-    method: 'POST',
-  });
+  const token = getAuthToken();
+  if (!token) {
+    return { data: null, error: 'No authentication token', status: 401 };
+  }
+
+  try {
+    const response = await fetch(`/api/comments/${commentId}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const data = await response.json();
+    
+    if (!response.ok) {
+      return { data: null, error: data.error || 'Failed to like comment', status: response.status };
+    }
+
+    return { data, error: null, status: response.status };
+  } catch (error) {
+    console.error('Error liking comment:', error);
+    return { data: null, error: 'Network error', status: 500 };
+  }
 }
 
 export async function deleteComment(
   commentId: string
 ): Promise<ApiResponse<{ success: boolean; message?: string }>> {
-  return backendRequest(`/api/v1/comments/${commentId}`, {
-    method: 'DELETE',
-  });
+  const token = getAuthToken();
+  if (!token) {
+    return { data: null, error: 'No authentication token', status: 401 };
+  }
+
+  try {
+    const response = await fetch(`/api/comments/${commentId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const data = await response.json();
+    
+    if (!response.ok) {
+      return { data: null, error: data.error || 'Failed to delete comment', status: response.status };
+    }
+
+    return { data, error: null, status: response.status };
+  } catch (error) {
+    console.error('Error deleting comment:', error);
+    return { data: null, error: 'Network error', status: 500 };
+  }
 }
 
 // ============================================
@@ -1075,45 +1233,45 @@ export async function fetchPostReactions(
 export async function fetchPost(
   postId: string
 ): Promise<ApiResponse<any>> {
-  console.log('=== fetchPost API Call ===');
-  console.log('Post ID:', postId);
-  console.log('Method: GET');
+  // console.log('=== fetchPost API Call ===');
+  // console.log('Post ID:', postId);
+  // console.log('Method: GET');
   
   // Try primary endpoint: /api/v1/trend/{postId} (following DELETE endpoint pattern)
-  console.log('Trying endpoint: /api/v1/trend/' + postId);
+  // console.log('Trying endpoint: /api/v1/trend/' + postId);
   let response = await backendRequest(`/api/v1/trend/${postId}`, {
     method: 'GET',
   });
   
-  console.log('fetchPost Response Status:', response.status);
-  console.log('fetchPost Response Data:', JSON.stringify(response.data, null, 2));
-  console.log('fetchPost Response Error:', response.error);
+  // console.log('fetchPost Response Status:', response.status);
+  // console.log('fetchPost Response Data:', JSON.stringify(response.data, null, 2));
+  // console.log('fetchPost Response Error:', response.error);
   
   // If 404, try alternative endpoints
   if (response.status === 404) {
-    console.warn('⚠️ Endpoint /api/v1/trend/' + postId + ' returned 404. Trying alternative formats...');
+    // console.warn('⚠️ Endpoint /api/v1/trend/' + postId + ' returned 404. Trying alternative formats...');
     
     // Try alternative 1: /api/v1/posts/{postId}
-    console.log('Trying alternative: /api/v1/posts/' + postId);
+    // console.log('Trying alternative: /api/v1/posts/' + postId);
     const altResponse1 = await backendRequest(`/api/v1/posts/${postId}`, {
       method: 'GET',
     });
     
     if (altResponse1.status === 200) {
-      console.log('✅ Alternative endpoint /api/v1/posts/' + postId + ' works!');
+      // console.log('✅ Alternative endpoint /api/v1/posts/' + postId + ' works!');
       response = altResponse1;
     } else {
       // Try alternative 2: /api/v1/post/{postId}
-      console.log('Trying alternative: /api/v1/post/' + postId);
+      // console.log('Trying alternative: /api/v1/post/' + postId);
       const altResponse2 = await backendRequest(`/api/v1/post/${postId}`, {
         method: 'GET',
       });
       
       if (altResponse2.status === 200) {
-        console.log('✅ Alternative endpoint /api/v1/post/' + postId + ' works!');
+        // console.log('✅ Alternative endpoint /api/v1/post/' + postId + ' works!');
         response = altResponse2;
       } else {
-        console.warn('❌ All direct endpoint formats returned 404. Trying to fetch from feed and search...');
+        // console.warn('❌ All direct endpoint formats returned 404. Trying to fetch from feed and search...');
         
         // Final fallback: Try fetching from feed and searching for the post
         // First try regular feed
@@ -1122,30 +1280,30 @@ export async function fetchPost(
           const posts = feedResponse.data.posts || (feedResponse.data as any).data || (feedResponse.data as any).trend || [];
           const foundPost = posts.find((p: any) => String(p.id) === String(postId));
           if (foundPost) {
-            console.log('✅ Found post in fetched feed data as fallback!');
+            // console.log('✅ Found post in fetched feed data as fallback!');
             return { status: 200, data: foundPost };
           }
         }
         
         // If regular feed didn't work, try bits feed
-        console.log('⚠️ Post not found in regular feed. Trying bits feed...');
+        // console.log('⚠️ Post not found in regular feed. Trying bits feed...');
         const bitsResponse = await fetchBitsForYou();
         if (bitsResponse.status === 200 && bitsResponse.data) {
           const bits = bitsResponse.data.data || [];
           const foundBit = bits.find((b: any) => String(b.id) === String(postId));
           if (foundBit) {
-            console.log('✅ Found post in bits feed as fallback!');
+            // console.log('✅ Found post in bits feed as fallback!');
             return { status: 200, data: foundBit };
           }
         }
         
-        console.warn('❌ Post not found in direct endpoints or feeds.');
-        console.warn('Please verify with backend team that /api/v1/trend/{id} or /api/v1/posts/{id} is implemented.');
+        // console.warn('❌ Post not found in direct endpoints or feeds.');
+        // console.warn('Please verify with backend team that /api/v1/trend/{id} or /api/v1/posts/{id} is implemented.');
       }
     }
   }
   
-  console.log('=== fetchPost END ===');
+  // console.log('=== fetchPost END ===');
   
   return response;
 }
@@ -1172,10 +1330,37 @@ export async function deletePost(
  */
 export async function toggleBookmark(
   postId: string
-): Promise<ApiResponse<{ success: boolean; bookmarked: boolean; message?: string }>> {
-  return backendRequest(`/api/v1/bookmark/${postId}`, {
-    method: 'POST',
-  });
+): Promise<ApiResponse<{ success: boolean; message?: string; bookmarked: boolean }>> {
+  const token = getAuthToken();
+  if (!token) {
+    return { data: null, error: 'No authentication token', status: 401 };
+  }
+
+  try {
+    const response = await fetch(`/api/posts/${postId}/bookmark`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'Origin': 'http://172.23.0.1:3000',
+        'Referer': 'http://172.23.0.1:3000/',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+    });
+
+    const data = await response.json();
+    
+    if (!response.ok) {
+      return { data: null, error: data.error || 'Failed to toggle bookmark', status: response.status };
+    }
+
+    return { data, error: null, status: response.status };
+  } catch (error) {
+    console.error('Error toggling bookmark:', error);
+    return { data: null, error: 'Network error', status: 500 };
+  }
 }
 
 /**
@@ -1185,9 +1370,36 @@ export async function toggleBookmark(
 export async function getBookmarkStatus(
   postId: string
 ): Promise<ApiResponse<{ bookmarked: boolean }>> {
-  return backendRequest(`/api/v1/bookmark-status/${postId}`, {
-    method: 'GET',
-  });
+  const token = getAuthToken();
+  if (!token) {
+    return { data: null, error: 'No authentication token', status: 401 };
+  }
+
+  try {
+    const response = await fetch(`/api/posts/${postId}/bookmark-status`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'Origin': 'http://172.23.0.1:3000',
+        'Referer': 'http://172.23.0.1:3000/',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+    });
+
+    const data = await response.json();
+    
+    if (!response.ok) {
+      return { data: null, error: data.error || 'Failed to get bookmark status', status: response.status };
+    }
+
+    return { data, error: null, status: response.status };
+  } catch (error) {
+    console.error('Error getting bookmark status:', error);
+    return { data: null, error: 'Network error', status: 500 };
+  }
 }
 
 /**
@@ -1210,10 +1422,48 @@ export async function fetchBookmarks(): Promise<ApiResponse<FeedResponse>> {
  */
 export async function reactToPost(
   postId: string
-): Promise<ApiResponse<{ success: boolean; liked: boolean; message?: string }>> {
-  return backendRequest(`/api/v1/react-to-post/${postId}`, {
-    method: 'POST',
-  });
+): Promise<ApiResponse<{ status: string; message: string; action: string; reaction_type: string; post_id: string }>> {
+  console.log('🔍 DEBUG: reactToPost function called with postId:', postId);
+  
+  const token = getAuthToken();
+  console.log('🔍 DEBUG: Token from getAuthToken:', !!token);
+  console.log('🔍 DEBUG: Token length:', token?.length || 0);
+  
+  if (!token) {
+    console.log('🔍 DEBUG: No token found, returning 401 error');
+    return { data: null, error: 'No authentication token', status: 401 };
+  }
+
+  try {
+    console.log('🔍 DEBUG: Making request to Next.js API route:', `/api/posts/${postId}/react`);
+    
+    const response = await fetch(`/api/posts/${postId}/react`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    console.log('🔍 DEBUG: Next.js API response status:', response.status);
+    console.log('🔍 DEBUG: Next.js API response ok:', response.ok);
+    console.log('🔍 DEBUG: Next.js API response headers:', Object.fromEntries(response.headers.entries()));
+
+    const data = await response.json();
+    console.log('🔍 DEBUG: Next.js API response data:', data);
+    
+    if (!response.ok) {
+      console.log('🔍 DEBUG: Next.js API request failed, returning error:', response.status, data.error);
+      return { data: null, error: data.error || 'Failed to react to post', status: response.status };
+    }
+
+    console.log('🔍 DEBUG: reactToPost success, returning data:', data);
+    return { data, error: null, status: response.status };
+  } catch (error) {
+    console.error('🔍 DEBUG: Error in reactToPost:', error);
+    console.error('🔍 DEBUG: Error stack:', error instanceof Error ? error.stack : 'No stack available');
+    return { data: null, error: 'Network error', status: 500 };
+  }
 }
 
 /**
@@ -1223,9 +1473,36 @@ export async function reactToPost(
 export async function getLikeStatus(
   postId: string
 ): Promise<ApiResponse<{ liked: boolean }>> {
-  return backendRequest(`/api/v1/likes/status/${postId}`, {
-    method: 'GET',
-  });
+  const token = getAuthToken();
+  if (!token) {
+    return { data: null, error: 'No authentication token', status: 401 };
+  }
+
+  try {
+    const response = await fetch(`/api/posts/${postId}/like-status`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'Origin': 'http://172.23.0.1:3000',
+        'Referer': 'http://172.23.0.1:3000/',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+    });
+
+    const data = await response.json();
+    
+    if (!response.ok) {
+      return { data: null, error: data.error || 'Failed to get like status', status: response.status };
+    }
+
+    return { data, error: null, status: response.status };
+  } catch (error) {
+    console.error('Error getting like status:', error);
+    return { data: null, error: 'Network error', status: 500 };
+  }
 }
 
 /**
@@ -1234,10 +1511,40 @@ export async function getLikeStatus(
  */
 export async function likeBit(
   bitId: string
-): Promise<ApiResponse<{ success: boolean; message?: string }>> {
-  return backendRequest(`/api/v1/bits/${bitId}/like`, {
-    method: 'POST',
-  });
+): Promise<ApiResponse<{ status: string; message: string; action: string; reaction_type: string; bit_id: string }>> {
+  const token = getAuthToken();
+  if (!token) {
+    return { data: null, error: 'No authentication token', status: 401 };
+  }
+
+  try {
+    const response = await fetch(`/api/bits/${bitId}/like`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'Origin': 'http://172.23.0.1:3000',
+        'Referer': 'http://172.23.0.1:3000/',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+      body: JSON.stringify({
+        reactType: 'like'
+      }),
+    });
+
+    const data = await response.json();
+    
+    if (!response.ok) {
+      return { data: null, error: data.error || 'Failed to like bit', status: response.status };
+    }
+
+    return { data, error: null, status: response.status };
+  } catch (error) {
+    console.error('Error liking bit:', error);
+    return { data: null, error: 'Network error', status: 500 };
+  }
 }
 
 
@@ -1308,50 +1615,50 @@ export interface UpdateProfileRequest {
 export async function updateProfile(
   data: UpdateProfileRequest
 ): Promise<ApiResponse<{ success: boolean; user?: UserProfile; message?: string }>> {
-  console.log('=== updateProfile API Call ===');
-  console.log('Endpoint: /api/v1/update-profile');
-  console.log('Request Data:', JSON.stringify(data, null, 2));
+  // console.log('=== updateProfile API Call ===');
+  // console.log('Endpoint: /api/v1/update-profile');
+  // console.log('Request Data:', JSON.stringify(data, null, 2));
   
   const response = await backendRequest('/api/v1/update-profile', {
     method: 'POST',
     body: JSON.stringify(data),
   });
   
-  console.log('updateProfile Response:', JSON.stringify(response, null, 2));
+  // console.log('updateProfile Response:', JSON.stringify(response, null, 2));
   return response;
 }
 
 export async function updateProfilePicture(
   imageUrl: string
 ): Promise<ApiResponse<{ success: boolean; avatar?: string; message?: string }>> {
-  console.log('=== updateProfilePicture API Call ===');
-  console.log('Endpoint: /api/v1/update-profile-pic');
-  console.log('Image URL length:', imageUrl.length);
-  console.log('Image URL preview (first 100 chars):', imageUrl.substring(0, 100));
+  // console.log('=== updateProfilePicture API Call ===');
+  // console.log('Endpoint: /api/v1/update-profile-pic');
+  // console.log('Image URL length:', imageUrl.length);
+  // console.log('Image URL preview (first 100 chars):', imageUrl.substring(0, 100));
   
   const response = await backendRequest('/api/v1/update-profile-pic', {
     method: 'POST',
     body: JSON.stringify({ image: imageUrl }),
   });
   
-  console.log('updateProfilePicture Response:', JSON.stringify(response, null, 2));
+  // console.log('updateProfilePicture Response:', JSON.stringify(response, null, 2));
   return response;
 }
 
 export async function updateCoverPicture(
   imageUrl: string
 ): Promise<ApiResponse<{ success: boolean; cover?: string; message?: string }>> {
-  console.log('=== updateCoverPicture API Call ===');
-  console.log('Endpoint: /api/v1/update-cover-pic');
-  console.log('Image URL length:', imageUrl.length);
-  console.log('Image URL preview (first 100 chars):', imageUrl.substring(0, 100));
+  // console.log('=== updateCoverPicture API Call ===');
+  // console.log('Endpoint: /api/v1/update-cover-pic');
+  // console.log('Image URL length:', imageUrl.length);
+  // console.log('Image URL preview (first 100 chars):', imageUrl.substring(0, 100));
   
   const response = await backendRequest('/api/v1/update-cover-pic', {
     method: 'POST',
     body: JSON.stringify({ image: imageUrl }),
   });
   
-  console.log('updateCoverPicture Response:', JSON.stringify(response, null, 2));
+  // console.log('updateCoverPicture Response:', JSON.stringify(response, null, 2));
   return response;
 }
 
@@ -1361,4 +1668,85 @@ export async function getUserBits(
   return backendRequest(`/api/v1/user/${username}/bits`, {
     method: 'GET',
   });
+}
+
+// Additional comment API functions
+export async function fetchPostComments(
+  postId: string
+): Promise<ApiResponse<any>> {
+  const token = getAuthToken();
+  if (!token) {
+    return { data: null, error: 'No authentication token', status: 401 };
+  }
+
+  try {
+    const response = await fetch(`/api/posts/${postId}/comments`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const data = await response.json();
+    
+    if (!response.ok) {
+      return { data: null, error: data.error || 'Failed to fetch comments', status: response.status };
+    }
+
+    return { data, error: null, status: response.status };
+  } catch (error) {
+    console.error('Error fetching comments:', error);
+    return { data: null, error: 'Network error', status: 500 };
+  }
+}
+
+export async function addComment(
+  postId: string,
+  content: string
+): Promise<ApiResponse<any>> {
+  const token = getAuthToken();
+  if (!token) {
+    return { data: null, error: 'No authentication token', status: 401 };
+  }
+
+  try {
+    const response = await fetch(`/api/posts/${postId}/post-comment`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ content }),
+    });
+
+    const data = await response.json();
+    
+    if (!response.ok) {
+      return { data: null, error: data.error || 'Failed to add comment', status: response.status };
+    }
+
+    return { data, error: null, status: response.status };
+  } catch (error) {
+    console.error('Error adding comment:', error);
+    return { data: null, error: 'Network error', status: 500 };
+  }
+}
+
+// Comment interfaces
+export interface Comment {
+  id: string;
+  content: string;
+  user: {
+    id: string;
+    username: string;
+    name: string;
+    avatar?: string;
+    verified?: boolean;
+  };
+  likes: number;
+  replies: number;
+  liked: boolean;
+  timestamp: string;
+  replies_data?: Comment[];
 }

@@ -22,56 +22,93 @@ export default function TweetCard({ tweet, isHighlighted = false }: TweetCardPro
   const [pollVotes, setPollVotes] = useState(tweet.poll?.votes || []);
   const [userVote, setUserVote] = useState(tweet.poll?.userVote);
 
-  // Fetch like and bookmark status on mount (only if not already provided in tweet prop)
-  // Use initial state from tweet prop to avoid unnecessary API calls and rate limiting
+  // Fetch like and bookmark status on mount (only if not already provided)
   useEffect(() => {
     const fetchStatus = async () => {
       const token = getAuthToken();
-      if (!token) return;
-
-      // Use initial state from tweet prop if available
-      if (tweet.liked !== undefined) {
-        setIsLiked(tweet.liked);
-      }
-      if (tweet.bookmarked !== undefined) {
-        setIsBookmarked(tweet.bookmarked);
-      }
-
-      // Only fetch status if we don't have it from the tweet prop
-      // Add a small delay to avoid rate limiting
-      const shouldFetch = tweet.liked === undefined || tweet.bookmarked === undefined;
       
-      if (shouldFetch) {
+      // Only fetch status if we don't have reliable data from tweet prop
+      // This reduces unnecessary API calls significantly
+      const needsLikeStatus = tweet.liked === undefined || tweet.liked === null;
+      const needsBookmarkStatus = tweet.bookmarked === undefined || tweet.bookmarked === null;
+      
+      if (!needsLikeStatus && !needsBookmarkStatus) {
+        console.log(' DEBUG: Using tweet prop data, skipping API calls for post:', tweet.id);
+        setIsLiked(tweet.liked || false);
+        setIsBookmarked(tweet.bookmarked || false);
+        return;
+      }
+      
+      console.log(' DEBUG: Fetching missing status for post:', tweet.id, {
+        needsLikeStatus,
+        needsBookmarkStatus
+      });
+      
+      if (token) {
         try {
-          // Add delay to avoid rate limiting (stagger requests)
-          await new Promise(resolve => setTimeout(resolve, Math.random() * 200 + 100));
+          // Add longer delay to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, Math.random() * 1000 + 500));
           
-          const [likeStatus, bookmarkStatus] = await Promise.all([
-            getLikeStatus(tweet.id),
-            getBookmarkStatus(tweet.id),
-          ]);
-
-          // Only update if we got valid responses (not 429 errors)
-          if (likeStatus.status === 200 && likeStatus.data) {
-            setIsLiked(likeStatus.data.liked);
-          } else if (likeStatus.status === 429) {
-            console.warn(`Rate limited for like status on post ${tweet.id}, using initial state from tweet prop`);
+          const requests = [];
+          if (needsLikeStatus) {
+            requests.push(getLikeStatus(tweet.id));
+          }
+          if (needsBookmarkStatus) {
+            requests.push(getBookmarkStatus(tweet.id));
           }
           
-          if (bookmarkStatus.status === 200 && bookmarkStatus.data) {
-            setIsBookmarked(bookmarkStatus.data.bookmarked);
-          } else if (bookmarkStatus.status === 429) {
-            console.warn(`Rate limited for bookmark status on post ${tweet.id}, using initial state from tweet prop`);
+          const results = await Promise.all(requests);
+          
+          // Process results based on what we requested
+          let likeResult, bookmarkResult;
+          if (needsLikeStatus && needsBookmarkStatus) {
+            [likeResult, bookmarkResult] = results;
+          } else if (needsLikeStatus) {
+            [likeResult] = results;
+          } else if (needsBookmarkStatus) {
+            [bookmarkResult] = results;
+          }
+
+          // Update like status if we got it
+          if (likeResult && likeResult.status === 200 && likeResult.data) {
+            console.log(' DEBUG: Setting liked state to:', likeResult.data.liked);
+            setIsLiked(likeResult.data.liked);
+          } else if (likeResult && likeResult.status === 429) {
+            console.warn(`Rate limited for like status on post ${tweet.id}, using initial state`);
+            setIsLiked(tweet.liked || false);
+          } else if (likeResult) {
+            console.warn(' DEBUG: Like status failed:', likeResult.status, likeResult.error);
+            setIsLiked(tweet.liked || false);
+          }
+          
+          // Update bookmark status if we got it
+          if (bookmarkResult && bookmarkResult.status === 200 && bookmarkResult.data) {
+            console.log(' DEBUG: Setting bookmarked state to:', bookmarkResult.data.bookmarked);
+            setIsBookmarked(bookmarkResult.data.bookmarked);
+          } else if (bookmarkResult && bookmarkResult.status === 429) {
+            console.warn(`Rate limited for bookmark status on post ${tweet.id}, using initial state`);
+            setIsBookmarked(tweet.bookmarked || false);
+          } else if (bookmarkResult) {
+            console.warn(' DEBUG: Bookmark status failed:', bookmarkResult.status, bookmarkResult.error);
+            setIsBookmarked(tweet.bookmarked || false);
           }
         } catch (error) {
-          console.error('Error fetching status:', error);
+          console.error(' DEBUG: Error fetching status:', error);
           // On error, keep using the initial state from tweet prop
+          setIsLiked(tweet.liked || false);
+          setIsBookmarked(tweet.bookmarked || false);
         }
+      } else {
+        console.log(' DEBUG: No token found, using initial state from tweet prop');
+        setIsLiked(tweet.liked || false);
+        setIsBookmarked(tweet.bookmarked || false);
       }
     };
 
-    fetchStatus();
-  }, [tweet.id, tweet.liked, tweet.bookmarked]);
+    // Add random delay to stagger requests across different cards
+    const randomDelay = Math.random() * 2000 + 1000; // 1-3 seconds random delay
+    setTimeout(fetchStatus, randomDelay);
+  }, [tweet.id]);
 
   const handleLike = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -93,15 +130,23 @@ export default function TweetCard({ tweet, isHighlighted = false }: TweetCardPro
         // Revert on error
         setIsLiked(!newLiked);
         setLikes(newLiked ? likes : likes + 1);
-        console.error('Error liking post:', response.error);
+        // console.error('Error liking post:', response.error);
       } else if (response.data) {
-        setIsLiked(response.data.liked);
+        // Use the action field from backend response to determine the final state
+        const finalLiked = response.data.action === 'added';
+        setIsLiked(finalLiked);
+        // Update likes count based on the actual action
+        if (response.data.action === 'added') {
+          setLikes(likes + 1);
+        } else if (response.data.action === 'removed') {
+          setLikes(likes - 1);
+        }
       }
     } catch (error) {
       // Revert on error
       setIsLiked(!newLiked);
       setLikes(newLiked ? likes : likes + 1);
-      console.error('Error liking post:', error);
+      // console.error('Error liking post:', error);
     }
   };
 
@@ -427,14 +472,14 @@ export default function TweetCard({ tweet, isHighlighted = false }: TweetCardPro
                   if (response.error) {
                     // Revert on error
                     setIsBookmarked(!newBookmarked);
-                    console.error('Error bookmarking post:', response.error);
+                    // console.error('Error bookmarking post:', response.error);
                   } else if (response.data) {
                     setIsBookmarked(response.data.bookmarked);
                   }
                 } catch (error) {
                   // Revert on error
                   setIsBookmarked(!newBookmarked);
-                  console.error('Error bookmarking post:', error);
+                  // console.error('Error bookmarking post:', error);
                 }
               }}
               className={`group flex items-center space-x-2 touch-manipulation min-w-[44px] min-h-[44px] justify-center rounded-full ${
@@ -464,7 +509,7 @@ export default function TweetCard({ tweet, isHighlighted = false }: TweetCardPro
                   } catch (error) {
                     // User cancelled or error occurred
                     if ((error as Error).name !== 'AbortError') {
-                      console.error('Error sharing:', error);
+                      // console.error('Error sharing:', error);
                     }
                   }
                 } else {
@@ -474,7 +519,7 @@ export default function TweetCard({ tweet, isHighlighted = false }: TweetCardPro
                     // You could show a toast notification here
                     alert('Link copied to clipboard!');
                   } catch (error) {
-                    console.error('Error copying to clipboard:', error);
+                    // console.error('Error copying to clipboard:', error);
                     // Final fallback: show URL
                     prompt('Copy this link:', shareUrl);
                   }

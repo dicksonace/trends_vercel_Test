@@ -15,18 +15,49 @@ export default function BookmarksPage() {
 
   useEffect(() => {
     const loadBookmarks = async () => {
+      console.log('🔍 DEBUG: Bookmarks page loading bookmarks');
+      
       const token = getAuthToken();
       if (!token) {
+        console.log('🔍 DEBUG: No token found, redirecting to login');
         router.push('/login');
         return;
       }
 
+      console.log('🔍 DEBUG: Token found, loading bookmarks');
       setIsLoading(true);
+      
       try {
+        console.log('🔍 DEBUG: Making API call to fetch bookmarks');
         const response = await fetchBookmarks();
-        if (response.data && response.data.posts) {
+        
+        console.log('🔍 DEBUG: Bookmarks API response:', response);
+        console.log('🔍 DEBUG: Response status:', response.status);
+        console.log('🔍 DEBUG: Response error:', response.error);
+        console.log('🔍 DEBUG: Response data:', response.data);
+        
+        if (response.error) {
+          console.error('🔍 DEBUG: Bookmarks API error:', response.error);
+          // Show error in UI instead of silent fail
+          return;
+        } else if (response.data) {
+          console.log('🔍 DEBUG: Bookmarks data received:', response.data);
+          
+          // Handle different response formats
+          let posts = [];
+          if (response.data.posts) {
+            posts = response.data.posts;
+          } else if (Array.isArray(response.data)) {
+            posts = response.data;
+          } else {
+            console.warn('🔍 DEBUG: Unexpected data format:', response.data);
+            posts = [];
+          }
+          
+          console.log('🔍 DEBUG: Posts to convert:', posts);
+          
           // Convert FeedPost to Tweet format
-          const convertedTweets: Tweet[] = response.data.posts.map((post: FeedPost) => ({
+          const convertedTweets: Tweet[] = posts.map((post: any) => ({
             id: post.id,
             user: {
               id: post.user.id,
@@ -41,16 +72,23 @@ export default function BookmarksPage() {
             likes: post.likes,
             retweets: post.retweets,
             replies: post.replies,
-            liked: post.liked,
-            retweeted: post.retweeted,
+            liked: post.liked || false,
+            retweeted: post.retweeted || false,
             bookmarked: true, // All posts here are bookmarked
             poll: post.poll,
           }));
+          
+          console.log('🔍 DEBUG: Converted tweets:', convertedTweets);
+          console.log('🔍 DEBUG: Setting bookmarked posts:', convertedTweets.length);
           setBookmarkedPosts(convertedTweets);
+        } else {
+          console.warn('🔍 DEBUG: No data in response');
         }
       } catch (error) {
-        console.error('Error fetching bookmarks:', error);
+        console.error('🔍 DEBUG: Error loading bookmarks:', error);
+        console.error('🔍 DEBUG: Error details:', error instanceof Error ? error.message : 'Unknown error');
       } finally {
+        console.log('🔍 DEBUG: Loading bookmarks complete');
         setIsLoading(false);
       }
     };

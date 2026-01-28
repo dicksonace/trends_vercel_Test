@@ -18,7 +18,7 @@ export async function GET() {
 
     return NextResponse.json({ clientId });
   } catch (error) {
-    console.error('Error getting Google Client ID:', error);
+    // console.error('Error getting Google Client ID:', error);
     return NextResponse.json(
       { error: 'Failed to get Google Client ID' },
       { status: 500 }

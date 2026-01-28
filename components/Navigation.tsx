@@ -16,6 +16,7 @@ const navigationItems = [
   { icon: Bell, label: 'Notifications', href: '/notifications' },
   { icon: Search, label: 'Search', href: '/explore' },
   { icon: Bookmark, label: 'Bookmarks', href: '/bookmarks' },
+  { icon: Coins, label: 'Bits', href: '/play' },
   { icon: User, label: 'Profile', href: '/profile' },
   { icon: Settings, label: 'Settings', href: '/settings' },
   { icon: Wallet, label: 'Wallet', href: '/wallet' },
@@ -82,10 +83,10 @@ export default function Navigation() {
     try {
       const response = await logout();
       if (response.error) {
-        console.error('Logout error:', response.error);
+        // console.error('Logout error:', response.error);
       }
     } catch (error) {
-      console.error('Logout error:', error);
+      // console.error('Logout error:', error);
     } finally {
       // Always clear user data and update state, even if logout API fails
       localStorage.removeItem('currentUser');

@@ -559,16 +559,16 @@ const TravelConnectSignIn = ({ mode = 'signin' }: { mode?: 'signin' | 'signup' }
       <SignInCard 
         mode={mode}
         onSignIn={(email, password) => {
-          console.log("Sign in attempt with:", { email, password });
+          // console.log("Sign in attempt with:", { email, password });
         }}
         onSignUp={(name, email, password) => {
-          console.log("Sign up attempt with:", { name, email, password });
+          // console.log("Sign up attempt with:", { name, email, password });
         }}
         onGoogleAuth={() => {
-          console.log("Google auth clicked");
+          // console.log("Google auth clicked");
         }}
         onForgotPassword={() => {
-          console.log("Forgot password clicked");
+          // console.log("Forgot password clicked");
         }}
         onSwitchMode={() => {
           // This will be handled by Next.js routing

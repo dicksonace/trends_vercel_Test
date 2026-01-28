@@ -34,7 +34,7 @@ export default function PostView({ tweet }: PostViewProps) {
           setComments(response.data.comments || []);
         }
       } catch (error) {
-        console.error('Error fetching comments:', error);
+        // console.error('Error fetching comments:', error);
       } finally {
         setIsLoadingComments(false);
       }
@@ -76,16 +76,16 @@ export default function PostView({ tweet }: PostViewProps) {
           if (likeStatus.status === 200 && likeStatus.data) {
             setIsLiked(likeStatus.data.liked);
           } else if (likeStatus.status === 429) {
-            console.warn('Rate limited for like status, using initial state from tweet prop');
+            // console.warn('Rate limited for like status, using initial state from tweet prop');
           }
           
           if (bookmarkStatus.status === 200 && bookmarkStatus.data) {
             setIsBookmarked(bookmarkStatus.data.bookmarked);
           } else if (bookmarkStatus.status === 429) {
-            console.warn('Rate limited for bookmark status, using initial state from tweet prop');
+            // console.warn('Rate limited for bookmark status, using initial state from tweet prop');
           }
         } catch (error) {
-          console.error('Error fetching status:', error);
+          // console.error('Error fetching status:', error);
           // On error, keep using the initial state from tweet prop
         }
       }
@@ -112,7 +112,7 @@ export default function PostView({ tweet }: PostViewProps) {
         // Revert on error
         setIsLiked(!newLiked);
         setLikes(newLiked ? likes : likes + 1);
-        console.error('Error liking post:', response.error);
+        // console.error('Error liking post:', response.error);
       } else if (response.data) {
         setIsLiked(response.data.liked);
       }
@@ -120,7 +120,7 @@ export default function PostView({ tweet }: PostViewProps) {
       // Revert on error
       setIsLiked(!newLiked);
       setLikes(newLiked ? likes : likes + 1);
-      console.error('Error liking post:', error);
+      // console.error('Error liking post:', error);
     }
   };
 
@@ -142,14 +142,14 @@ export default function PostView({ tweet }: PostViewProps) {
     try {
       const response = await postComment(tweet.id, { content: newComment.trim() });
       if (response.error) {
-        console.error('Error posting comment:', response.error);
+        // console.error('Error posting comment:', response.error);
         alert(response.error);
       } else if (response.data?.comment) {
         setComments([response.data.comment, ...comments]);
         setNewComment('');
       }
     } catch (error) {
-      console.error('Error posting comment:', error);
+      // console.error('Error posting comment:', error);
       alert('Failed to post comment. Please try again.');
     } finally {
       setIsPostingComment(false);
@@ -321,14 +321,14 @@ export default function PostView({ tweet }: PostViewProps) {
                     if (response.error) {
                       // Revert on error
                       setIsBookmarked(!newBookmarked);
-                      console.error('Error bookmarking post:', response.error);
+                      // console.error('Error bookmarking post:', response.error);
                     } else if (response.data) {
                       setIsBookmarked(response.data.bookmarked);
                     }
                   } catch (error) {
                     // Revert on error
                     setIsBookmarked(!newBookmarked);
-                    console.error('Error bookmarking post:', error);
+                    // console.error('Error bookmarking post:', error);
                   }
                 }}
                 className={`group flex items-center space-x-2 transition-colors touch-manipulation min-w-[44px] min-h-[44px] justify-center rounded-full ${
@@ -464,7 +464,7 @@ export default function PostView({ tweet }: PostViewProps) {
                             setComments(response.data.comments || []);
                           }
                         } catch (error) {
-                          console.error('Error liking comment:', error);
+                          // console.error('Error liking comment:', error);
                         }
                       }}
                       className="flex items-center space-x-2 text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors group touch-manipulation min-w-[44px] min-h-[44px] justify-center"

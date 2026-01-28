@@ -18,12 +18,12 @@ export default function MorePage() {
     try {
       const response = await logout();
       if (response.error) {
-        console.error('Logout error:', response.error);
+        // console.error('Logout error:', response.error);
       }
       // Redirect to login page regardless of response
       router.push('/login');
     } catch (error) {
-      console.error('Logout error:', error);
+      // console.error('Logout error:', error);
       // Still redirect even if logout fails
       router.push('/login');
     } finally {
