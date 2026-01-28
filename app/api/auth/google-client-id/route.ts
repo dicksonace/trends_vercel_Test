@@ -4,6 +4,8 @@ import { NextResponse } from 'next/server';
  * API route to serve Google Client ID from backend
  * This avoids CORS issues by serving the client ID from the same origin
  */
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || 

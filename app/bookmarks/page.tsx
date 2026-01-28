@@ -44,7 +44,7 @@ export default function BookmarksPage() {
           console.log('🔍 DEBUG: Bookmarks data received:', response.data);
           
           // Handle different response formats
-          let posts = [];
+          let posts: any[] = [];
           if (response.data.posts) {
             posts = response.data.posts;
           } else if (Array.isArray(response.data)) {

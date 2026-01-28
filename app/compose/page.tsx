@@ -442,15 +442,15 @@ export default function ComposePage() {
       }
       
       // console.log('📝 Composing trend:', {
-        text: trendText.trim(),
-        imageFilesCount: imageFiles.length,
-        videoFilesCount: videoFiles.length,
-        gifUrlsCount: gifUrls.length,
-        hasPoll: !!hasPoll,
-        hasLocation: !!selectedLocation,
-        hasScheduled: !!(scheduledDate && scheduledTime),
-        usingFormData: hasFiles,
-      });
+      //   text: trendText.trim(),
+      //   imageFilesCount: imageFiles.length,
+      //   videoFilesCount: videoFiles.length,
+      //   gifUrlsCount: gifUrls.length,
+      //   hasPoll: !!hasPoll,
+      //   hasLocation: !!selectedLocation,
+      //   hasScheduled: !!(scheduledDate && scheduledTime),
+      //   usingFormData: hasFiles,
+      // });
       
       // Call API
       const response = await composeTrend(payload, hasFiles);

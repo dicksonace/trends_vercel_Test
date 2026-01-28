@@ -34,16 +34,16 @@ export default function ExplorePage() {
         const response = await fetchFeed('for-you', 1, 5);
         if (response.status === 200 && response.data) {
           // Convert response to Tweet format (same logic as Feed component)
-          const postsArray = response.data?.data || response.data?.posts || response.data?.trend || [];
+          const postsArray = (response.data as any)?.data || (response.data as any)?.posts || (response.data as any)?.trend || [];
           if (Array.isArray(postsArray) && postsArray.length > 0) {
-            const convertedTweets: Tweet[] = postsArray.slice(0, 5).map((post: any) => {
-              let avatarUrl: string | undefined = undefined;
+            const convertedTweets = postsArray.slice(0, 5).map((post: any) => {
+              let avatarUrl: string = '';
               if (post.user?.picture) {
                 avatarUrl = post.user.picture.startsWith('http') 
                   ? post.user.picture 
                   : `https://www.trendshub.link/storage/${post.user.picture}`;
               } else if (post.user?.avatar) {
-                avatarUrl = post.user.avatar;
+                avatarUrl = post.user.avatar || '';
               }
               
               let images: string[] | undefined = undefined;
@@ -99,7 +99,7 @@ export default function ExplorePage() {
                 } : undefined,
               };
             });
-            setForYouTweets(convertedTweets);
+            setForYouTweets(convertedTweets as Tweet[]);
           } else {
             setForYouTweets([]);
           }
@@ -195,7 +195,7 @@ export default function ExplorePage() {
               } : undefined,
             };
           });
-          setSearchResults(convertedTweets);
+          setSearchResults(convertedTweets as Tweet[]);
         } else {
           setSearchResults([]);
         }
@@ -285,7 +285,7 @@ export default function ExplorePage() {
               } : undefined,
             };
           });
-          setHashtagResults(convertedTweets);
+          setHashtagResults(convertedTweets as Tweet[]);
         } else {
           setHashtagResults([]);
         }

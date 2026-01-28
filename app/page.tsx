@@ -1,12 +1,13 @@
 'use client';
 
+import { Suspense } from 'react';
 import Feed from '@/components/Feed';
 import { mockTweets } from '@/lib/mockData';
 import { useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { getAuthToken } from '@/lib/api';
 
-export default function Home() {
+function HomeContent() {
   const hasRestoredScroll = useRef(false);
   const searchParams = useSearchParams();
   
@@ -75,6 +76,14 @@ export default function Home() {
   return (
     <main className="border-x border-border bg-background">
       <Feed tweets={[]} initialTab={initialTab} />
-      </main>
+    </main>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <HomeContent />
+    </Suspense>
   );
 }
